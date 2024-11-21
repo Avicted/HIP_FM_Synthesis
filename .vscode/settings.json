@@ -1,0 +1,7 @@
+{
+    "files.associations": {
+        "algorithm": "cpp",
+        "cstdint": "cpp",
+        "compare": "cpp"
+    }
+}

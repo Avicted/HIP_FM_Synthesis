@@ -1,8 +1,14 @@
+// Standard library headers
 #include <stdio.h>
 #include <cmath>
 #include <vector>
 
+// HIP header
 #include <hip/hip_runtime.h>
+
+// Our code
+#include "Utils.cu"
+#include "WAV_Helper.cu"
 
 #define PI acos(-1.0f)
 
@@ -40,67 +46,6 @@ struct FMSynthParams
 std::vector<float> outputSignal(signalLength);
 
 // -----------------------------------------------------------------------
-
-// HIP error handling macro
-#define HIP_ERRCHK(err) (hip_errchk(err, __FILE__, __LINE__))
-static inline void hip_errchk(hipError_t err, const char *file, int line)
-{
-    if (err != hipSuccess)
-    {
-        printf("\n\n%s in %s at line %d\n", hipGetErrorString(err), file, line);
-        exit(EXIT_FAILURE);
-    }
-}
-
-static void
-GetCudaDevices(void)
-{
-    int deviceCount = 0;
-    hipError_t Error = hipGetDeviceCount(&deviceCount);
-
-    if (Error != hipSuccess)
-    {
-        printf("\tFailed to get CUDA Device Count: %s\n", hipGetErrorString(Error));
-        return;
-    }
-    else
-    {
-        printf("\tCUDA Device Count: %d\n", deviceCount);
-    }
-
-    for (int i = 0; i < deviceCount; i++)
-    {
-        hipDeviceProp_t prop;
-        hipError_t Error = hipGetDeviceProperties(&prop, i);
-
-        if (Error != hipSuccess)
-        {
-            printf("\tFailed to get CUDA Device Properties: %s\n", hipGetErrorString(Error));
-            continue;
-        }
-        else
-        {
-            printf("\tDevice %d: %s\n", i, prop.name);
-            printf("\t\tCompute Capability: %d.%d\n", prop.major, prop.minor);
-            printf("\t\tTotal Global Memory: %lu\n", prop.totalGlobalMem);
-            printf("\t\tShared Memory per Block: %lu\n", prop.sharedMemPerBlock);
-            printf("\t\tRegisters per Block: %d\n", prop.regsPerBlock);
-            printf("\t\tWarp Size: %d\n", prop.warpSize);
-            printf("\t\tMax Threads per Block: %d\n", prop.maxThreadsPerBlock);
-            printf("\t\tMax Threads Dimension: (%d, %d, %d)\n", prop.maxThreadsDim[0], prop.maxThreadsDim[1], prop.maxThreadsDim[2]);
-            printf("\t\tMax Grid Size: (%d, %d, %d)\n", prop.maxGridSize[0], prop.maxGridSize[1], prop.maxGridSize[2]);
-            printf("\t\tClock Rate: %d\n", prop.clockRate);
-            printf("\t\tTotal Constant Memory: %lu\n", prop.totalConstMem);
-            printf("\t\tMultiprocessor Count: %d\n", prop.multiProcessorCount);
-            printf("\t\tL2 Cache Size: %d\n", prop.l2CacheSize);
-            printf("\t\tMax Threads per Multiprocessor: %d\n", prop.maxThreadsPerMultiProcessor);
-            printf("\t\tUnified Addressing: %d\n", prop.unifiedAddressing);
-            printf("\t\tMemory Clock Rate: %d\n", prop.memoryClockRate);
-            printf("\t\tMemory Bus Width: %d\n", prop.memoryBusWidth);
-            printf("\t\tPeak Memory Bandwidth: %f\n", 2.0 * prop.memoryClockRate * (prop.memoryBusWidth / 8) / 1.0e6);
-        }
-    }
-}
 
 __global__ void
 HelloWorldKernel(void)
@@ -210,99 +155,6 @@ RunFMSynthesis(
     HIP_ERRCHK(hipFree(d_outputSignal));
 
     printf("\tFM Synthesis completed!\n");
-}
-
-// 16-bit PCM Output
-static int16_t
-ConvertTo16Bit(float sample)
-{
-    return (int16_t)(sample * 32767.0f);
-}
-
-// 24-bit PCM Output
-static void
-Write24BitSample(FILE *file, float sample)
-{
-    int32_t intSample = (int32_t)(sample * 8388607.0f); // Scale to 24-bit
-    uint8_t bytes[3] = {
-        (uint8_t)(intSample & 0xFF),
-        (uint8_t)((intSample >> 8) & 0xFF),
-        (uint8_t)((intSample >> 16) & 0xFF)};
-    fwrite(bytes, 1, 3, file);
-}
-
-// 32-bit Float Output
-static void
-Write32BitFloatSample(FILE *file, float sample)
-{
-    fwrite(&sample, sizeof(float), 1, file);
-}
-
-static void
-WriteWAVHeader(FILE *file, int sampleRate, int numChannels, int bitDepth, int numSamples)
-{
-    int byteRate = sampleRate * numChannels * (bitDepth / 8);
-    int blockAlign = numChannels * (bitDepth / 8);
-    int dataChunkSize = numSamples * blockAlign;
-    int fileSize = 36 + dataChunkSize;
-
-    // Write RIFF header
-    fwrite("RIFF", 1, 4, file);
-    fwrite(&fileSize, 4, 1, file);
-    fwrite("WAVE", 1, 4, file);
-
-    // Write fmt subchunk
-    fwrite("fmt ", 1, 4, file);
-    int subchunk1Size = 16; // PCM header size
-    fwrite(&subchunk1Size, 4, 1, file);
-
-    short audioFormat = (bitDepth == 32) ? 3 : 1; // 3 = IEEE float, 1 = PCM
-    fwrite(&audioFormat, 2, 1, file);
-    fwrite(&numChannels, 2, 1, file);
-    fwrite(&sampleRate, 4, 1, file);
-    fwrite(&byteRate, 4, 1, file);
-    fwrite(&blockAlign, 2, 1, file);
-    fwrite(&bitDepth, 2, 1, file);
-
-    // Write data subchunk header
-    fwrite("data", 1, 4, file);
-    fwrite(&dataChunkSize, 4, 1, file);
-}
-
-static void
-WriteWAVFile(const char *filename, float *samples, int numSamples, int sampleRate, int bitDepth)
-{
-    FILE *file = fopen(filename, "wb");
-    if (!file)
-    {
-        printf("Failed to open file for writing\n");
-        return;
-    }
-
-    int numChannels = 1; // Mono
-    WriteWAVHeader(file, sampleRate, numChannels, bitDepth, numSamples);
-
-    for (int i = 0; i < numSamples; i++)
-    {
-        float sample = samples[i];
-
-        if (bitDepth == 16)
-        {
-            int16_t pcmSample = ConvertTo16Bit(sample);
-            fwrite(&pcmSample, sizeof(int16_t), 1, file);
-        }
-        else if (bitDepth == 24)
-        {
-            Write24BitSample(file, sample);
-        }
-        else if (bitDepth == 32)
-        {
-            Write32BitFloatSample(file, sample);
-        }
-    }
-
-    fclose(file);
-    printf("\tWAV file written: %s\n", filename);
 }
 
 int main(int argc, char **argv)
