@@ -13,21 +13,21 @@
 #define PI acos(-1.0f)
 
 // Define parameters for the synthesis
-const int sampleRate = 48000;        // Default: 48kHz. Allow user input for other rates like 44100, 96000, etc.
-const int signalLengthInSeconds = 5; // 5 seconds of sound
-const int signalLength = sampleRate * signalLengthInSeconds;
+const int sampleRate = 48000;         // Default: 48kHz. Allow user input for other rates like 44100, 96000, etc.
+const int signalLengthInSeconds = 10; // 10 seconds of sound
+const unsigned long long signalLength = sampleRate * signalLengthInSeconds;
 
-const float initialCarrierFreq = 440.0f;   // note (440 Hz) for FM synthesis
-const float initialModulatorFreq = 220.0f; // Modulation frequency
+const float initialCarrierFreq = 220.0f;   // note (220 Hz) for FM synthesis
+const float initialModulatorFreq = 110.0f; // Modulation frequency
 const float modulationIndex = 1.0f;        // Depth of modulation
 const float amplitude = 0.20f;             // Volume
 
 // ADSR (Attack, Decay, Sustain, Release) envelope parameters
-const float attackTime = 0.2f;   // Attack duration in seconds
+const float attackTime = 0.3f;   // Attack duration in seconds
 const float decayTime = 0.3f;    // Decay duration in seconds
-const float sustainLevel = 0.8f; // Sustain amplitude (0.0 to 1.0)
-const float releaseTime = 0.3f;  // Release duration in seconds
-const float noteDuration = 3.0f; // Total note duration in seconds
+const float sustainLevel = 0.7f; // Sustain amplitude (0.0 to 1.0)
+const float releaseTime = 1.0f;  // Release duration in seconds
+const float noteDuration = signalLengthInSeconds;
 
 enum class WaveformType
 {
@@ -41,7 +41,7 @@ struct FMSynthParams
 {
     int sampleRate;
     int signalLengthInSeconds;
-    int signalLength;
+    unsigned long long signalLength;
 
     float carrierFreq;
     float modulatorFreq;
@@ -127,11 +127,11 @@ FMSynthesisWithEnvelope(FMSynthParams params, float *outputSignal)
         float phase = 2.0f * PI * params.carrierFreq * time;
 
         // Vary the frequencies over time (e.g., a slow glide for both carrier and modulator)
-        float carrierFreq = initialCarrierFreq + sinf(time * 0.1f) * 50.0f;      // Vary by 50Hz
-        float modulatorFreq = initialModulatorFreq + sinf(time * 0.05f) * 25.0f; // Vary by 25Hz
+        float carrierFreq = initialCarrierFreq + __sinf(time * 0.1f) * 50.0f;      // Vary by 50Hz
+        float modulatorFreq = initialModulatorFreq + __sinf(time * 0.05f) * 25.0f; // Vary by 25Hz
 
         // Modulate the carrier frequency
-        phase += params.modulationIndex * sinf(2.0f * PI * modulatorFreq * time);
+        phase += params.modulationIndex * __sinf(2.0f * PI * modulatorFreq * time);
 
         // Apply the envelope
         float envelope = ApplyEnvelope(
