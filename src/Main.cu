@@ -1,6 +1,6 @@
 // Standard library headers
 #include <stdio.h>
-#include <cmath>
+#include <math.h>
 #include <vector>
 
 // HIP header
@@ -58,7 +58,7 @@ struct FMSynthParams
 };
 
 // Create host buffer for the output signal
-std::vector<float> outputSignal(signalLength);
+std::vector<float> outputSignal;
 
 // -----------------------------------------------------------------------
 
@@ -157,18 +157,18 @@ RunFMSynthesis(float *outputSignal, FMSynthParams params)
 
     // Allocate device memory
     float *d_outputSignal;
-    HIP_ERRCHK(hipMalloc(&d_outputSignal, signalLength * sizeof(float)));
+    HIP_ERRCHK(hipMalloc(&d_outputSignal, params.signalLength * sizeof(float)));
 
     // Launch the kernel
     dim3 blockDim(256);
-    dim3 gridDim((signalLength + blockDim.x - 1) / blockDim.x);
+    dim3 gridDim((params.signalLength + blockDim.x - 1) / blockDim.x);
 
     FMSynthesisWithEnvelope<<<gridDim, blockDim>>>(params, d_outputSignal);
 
     HIP_ERRCHK(hipDeviceSynchronize());
 
     // Copy result back to host
-    HIP_ERRCHK(hipMemcpy(outputSignal, d_outputSignal, signalLength * sizeof(float), hipMemcpyDeviceToHost));
+    HIP_ERRCHK(hipMemcpy(outputSignal, d_outputSignal, params.signalLength * sizeof(float), hipMemcpyDeviceToHost));
     HIP_ERRCHK(hipFree(d_outputSignal));
 
     printf("\tFM Synthesis completed!\n");
@@ -183,6 +183,9 @@ int main(int argc, char **argv)
     HIP_ERRCHK(hipSetDevice(0));
 
     HelloWorldKernel<<<1, 1>>>();
+
+    // Allocate host memory
+    outputSignal.resize(signalLength);
 
     hipEvent_t startEvent, stopEvent;
     HIP_ERRCHK(hipEventCreate(&startEvent));
@@ -217,7 +220,7 @@ int main(int argc, char **argv)
     printf("\tKernel execution time: %.3f ms\n", milliseconds);
 
     int bitDepth = 16;
-    WriteWAVFile("output_32bit_48kHz.wav", outputSignal.data(), params.signalLength, params.signalLength, bitDepth);
+    WriteWAVFile("output_32bit_48kHz.wav", outputSignal.data(), params.signalLength, params.sampleRate, bitDepth);
 
     // Free host memory
     outputSignal.clear();

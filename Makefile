@@ -14,6 +14,7 @@ EXE = build/Main
 all: $(EXE) run
 
 $(EXE): $(SRC)
+	$(shell rm *.wav)
 	$(shell mkdir -p build)
 	$(HIPCC) $(HIPFLAGS) -o $(EXE) $(SRC)
 

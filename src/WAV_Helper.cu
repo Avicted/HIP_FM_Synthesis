@@ -56,7 +56,12 @@ WriteWAVHeader(FILE *file, int sampleRate, int numChannels, int bitDepth, int nu
 }
 
 static void
-WriteWAVFile(const char *filename, float *samples, int numSamples, int sampleRate, int bitDepth)
+WriteWAVFile(
+    const char *filename,
+    float *samples,
+    unsigned long long numSamples,
+    int sampleRate,
+    int bitDepth)
 {
     FILE *file = fopen(filename, "wb");
     if (!file)
