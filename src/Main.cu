@@ -21,6 +21,20 @@ const float sustainLevel = 0.8f; // Sustain amplitude (0.0 to 1.0)
 const float releaseTime = 0.3f;  // Release duration in seconds
 const float noteDuration = 3.0f; // Total note duration in seconds
 
+struct FMSynthParams
+{
+    float carrierFreq;
+    float modulatorFreq;
+    float modulationIndex;
+    float amplitude;
+
+    float attackTime;
+    float decayTime;
+    float sustainLevel;
+    float releaseTime;
+    float noteDuration;
+};
+
 // Create host buffer for the output signal
 std::vector<float> FMSignal(signalLength);
 
@@ -126,11 +140,7 @@ ApplyEnvelope(
 
 // FM Synthesis Kernel
 __global__ void
-FMSynthesisWithEnvelope(
-    float *outputSignal, int sampleRate, int signalLength,
-    float carrierFreq, float modulatorFreq, float modulationIndex,
-    float amplitude, float attackTime, float decayTime,
-    float sustainLevel, float releaseTime, float noteDuration)
+FMSynthesisWithEnvelope(FMSynthParams params, float *outputSignal, int sampleRate, int signalLength)
 {
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
     if (idx < signalLength)
@@ -176,11 +186,22 @@ RunFMSynthesis(
     dim3 blockDim(256);
     dim3 gridDim((signalLength + blockDim.x - 1) / blockDim.x);
 
+    FMSynthParams params;
+    params.carrierFreq = carrierFreq;
+    params.modulatorFreq = modulatorFreq;
+    params.modulationIndex = modulationIndex;
+    params.amplitude = amplitude;
+    params.attackTime = attackTime;
+    params.decayTime = decayTime;
+    params.sustainLevel = sustainLevel;
+    params.releaseTime = releaseTime;
+    params.noteDuration = noteDuration;
+
     FMSynthesisWithEnvelope<<<gridDim, blockDim>>>(
-        d_outputSignal, sampleRate, signalLength,
-        carrierFreq, modulatorFreq, modulationIndex,
-        amplitude,
-        attackTime, decayTime, sustainLevel, releaseTime, noteDuration);
+        params,
+        d_outputSignal,
+        sampleRate,
+        signalLength);
 
     HIP_ERRCHK(hipDeviceSynchronize());
 
