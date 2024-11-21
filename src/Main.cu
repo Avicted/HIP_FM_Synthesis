@@ -102,7 +102,7 @@ GetCudaDevices(void)
 __global__ void
 HelloWorldKernel(void)
 {
-    printf("\tHello from CUDA Kernel!\n");
+    printf("\tHello from HIP Kernel!\n");
 }
 
 __device__ float
