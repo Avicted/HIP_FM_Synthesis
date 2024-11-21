@@ -1,6 +1,4 @@
-# Makefile for building a CUDA program with hipify-clang (ROCm)
-
-# Compilers
+# Compiler
 HIPCC = hipcc
 
 # Flags
@@ -16,7 +14,6 @@ EXE = build/Main
 all: $(EXE) run
 
 $(EXE): $(SRC)
-	# Create build directory
 	$(shell mkdir -p build)
 	$(HIPCC) $(HIPFLAGS) -o $(EXE) $(SRC)
 
