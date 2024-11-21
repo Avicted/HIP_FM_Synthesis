@@ -62,10 +62,7 @@ ffmpeg -i output_32bit_48kHz.wav -vn -ar 44100 -ac 2 -b:a 192k output_demo.mp3
 
 #### Example Audio Output
 
-<audio controls>
-  <source src="https://github.com/Avicted/HIP_FM_Synthesis/blob/main/output_demo.mp3" type="audio/mp3">
-  Your browser does not support the audio element.
-</audio>
+[Click here to listen to the sound](https://github.com/Avicted/HIP_FM_Synthesis/blob/main/output_demo.mp3)
 
 ## License
 This project is licensed under the MIT License
