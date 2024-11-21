@@ -9,10 +9,17 @@
 // Define parameters for the synthesis
 const int sampleRate = 44100;
 const int signalLength = sampleRate * 5;   // 5 seconds of sound
-const float initialCarrierFreq = 150.0f;   // note (150 Hz) for FM synthesis
-const float initialModulatorFreq = 120.0f; // Modulation frequency
+const float initialCarrierFreq = 440.0f;   // note (440 Hz) for FM synthesis
+const float initialModulatorFreq = 220.0f; // Modulation frequency
 const float modulationIndex = 1.0f;        // Depth of modulation
-const float amplitude = 0.25f;             // Volume
+const float amplitude = 0.20f;             // Volume
+
+// ADSR (Attack, Decay, Sustain, Release) envelope parameters
+const float attackTime = 0.2f;   // Attack duration in seconds
+const float decayTime = 0.3f;    // Decay duration in seconds
+const float sustainLevel = 0.8f; // Sustain amplitude (0.0 to 1.0)
+const float releaseTime = 0.3f;  // Release duration in seconds
+const float noteDuration = 3.0f; // Total note duration in seconds
 
 // Create host buffer for the output signal
 std::vector<float> FMSignal(signalLength);
@@ -78,35 +85,74 @@ GetCudaDevices(void)
     }
 }
 
-__global__ void HelloWorldKernel(void)
+__global__ void
+HelloWorldKernel(void)
 {
     printf("\tHello from CUDA Kernel!\n");
 }
 
+__device__ float
+ApplyEnvelope(
+    float time,
+    float attackTime,
+    float decayTime,
+    float sustainLevel,
+    float releaseTime,
+    float noteDuration)
+{
+    if (time < attackTime)
+    {
+        // Attack phase: Linearly increase amplitude
+        return time / attackTime;
+    }
+    else if (time < attackTime + decayTime)
+    {
+        // Decay phase: Linearly decrease amplitude to the sustain level
+        return 1.0f - ((time - attackTime) / decayTime) * (1.0f - sustainLevel);
+    }
+    else if (time < noteDuration - releaseTime)
+    {
+        // Sustain phase: Maintain the sustain level
+        return sustainLevel;
+    }
+    else if (time < noteDuration)
+    {
+        // Release phase: Linearly decrease amplitude to 0
+        return sustainLevel * (1.0f - (time - (noteDuration - releaseTime)) / releaseTime);
+    }
+    // After release, amplitude is 0
+    return 0.0f;
+}
+
 // FM Synthesis Kernel
-__global__ void FMSynthesis(
-    float *outputSignal,
-    int sampleRate,
-    int signalLength,
-    float carrierFreq,
-    float modulatorFreq,
-    float modulationIndex,
-    float amplitude)
+__global__ void
+FMSynthesisWithEnvelope(
+    float *outputSignal, int sampleRate, int signalLength,
+    float carrierFreq, float modulatorFreq, float modulationIndex,
+    float amplitude, float attackTime, float decayTime,
+    float sustainLevel, float releaseTime, float noteDuration)
 {
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
-
     if (idx < signalLength)
     {
-        // Time in seconds for the current sample
-        float time = (float)idx / (float)sampleRate;
+        float time = (float)idx / sampleRate;
 
         // Vary the frequencies over time (e.g., a slow glide for both carrier and modulator)
         float carrierFreq = initialCarrierFreq + sinf(time * 0.1f) * 50.0f;      // Vary by 50Hz
         float modulatorFreq = initialModulatorFreq + sinf(time * 0.05f) * 25.0f; // Vary by 25Hz
 
+        // Apply the ADSR envelope
+        float envelope = ApplyEnvelope(time, attackTime, decayTime, sustainLevel, releaseTime, noteDuration);
+
         // FM synthesis equation: y(t) = A * sin(2 * pi * f_carrier * t + I * sin(2 * pi * f_modulator * t))
-        float modulator = modulationIndex * sinf(2 * PI * modulatorFreq * time);
-        outputSignal[idx] = amplitude * sinf(2 * PI * carrierFreq * time + modulator);
+        // Modulation
+        float modulator = modulationIndex * sinf(2.0f * M_PI * modulatorFreq * time);
+
+        // Carrier signal with envelope applied
+        float signal = envelope * amplitude * sinf(2.0f * M_PI * carrierFreq * time + modulator);
+
+        // Store the result
+        outputSignal[idx] = signal;
     }
 }
 
@@ -122,14 +168,19 @@ RunFMSynthesis(
 {
     printf("\tRunning FM Synthesis...\n");
 
+    // Allocate device memory
     float *d_outputSignal;
-    HIP_ERRCHK(hipMalloc((void **)&d_outputSignal, signalLength * sizeof(float)));
+    HIP_ERRCHK(hipMalloc(&d_outputSignal, signalLength * sizeof(float)));
 
-    int threadsPerBlock = 256;
-    int blocksPerGrid = (signalLength + threadsPerBlock - 1) / threadsPerBlock;
+    // Launch the kernel
+    dim3 blockDim(256);
+    dim3 gridDim((signalLength + blockDim.x - 1) / blockDim.x);
 
-    // Launch FM synthesis kernel
-    FMSynthesis<<<blocksPerGrid, threadsPerBlock>>>(d_outputSignal, sampleRate, signalLength, carrierFreq, modulatorFreq, modulationIndex, amplitude);
+    FMSynthesisWithEnvelope<<<gridDim, blockDim>>>(
+        d_outputSignal, sampleRate, signalLength,
+        carrierFreq, modulatorFreq, modulationIndex,
+        amplitude,
+        attackTime, decayTime, sustainLevel, releaseTime, noteDuration);
 
     HIP_ERRCHK(hipDeviceSynchronize());
 
