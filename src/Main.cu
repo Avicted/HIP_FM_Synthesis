@@ -16,6 +16,7 @@
 const int sampleRate = 48000;        // Default: 48kHz. Allow user input for other rates like 44100, 96000, etc.
 const int signalLengthInSeconds = 5; // 5 seconds of sound
 const int signalLength = sampleRate * signalLengthInSeconds;
+
 const float initialCarrierFreq = 440.0f;   // note (440 Hz) for FM synthesis
 const float initialModulatorFreq = 220.0f; // Modulation frequency
 const float modulationIndex = 1.0f;        // Depth of modulation
@@ -27,6 +28,14 @@ const float decayTime = 0.3f;    // Decay duration in seconds
 const float sustainLevel = 0.8f; // Sustain amplitude (0.0 to 1.0)
 const float releaseTime = 0.3f;  // Release duration in seconds
 const float noteDuration = 3.0f; // Total note duration in seconds
+
+enum class WaveformType
+{
+    Sine,
+    Square,
+    Triangle,
+    Sawtooth
+};
 
 struct FMSynthParams
 {
@@ -40,6 +49,8 @@ struct FMSynthParams
     float sustainLevel;
     float releaseTime;
     float noteDuration;
+
+    WaveformType waveformType;
 };
 
 // Create host buffer for the output signal
@@ -83,6 +94,24 @@ ApplyEnvelope(
     return envelope;
 }
 
+__device__ float
+GenerateWaveform(WaveformType type, float phase)
+{
+    switch (type)
+    {
+    case WaveformType::Sine:
+        return sinf(phase);
+    case WaveformType::Square:
+        return fmodf(phase, 2.0f * PI) < PI ? 1.0f : -1.0f;
+    case WaveformType::Triangle:
+        return 2.0f * fabsf(2.0f * (phase / (2.0f * PI) - floorf(phase / (2.0f * PI) + 0.5f))) - 1.0f;
+    case WaveformType::Sawtooth:
+        return 2.0f * (phase / (2.0f * PI) - floorf(phase / (2.0f * PI))) - 1.0f;
+    default:
+        return 0.0f; // Fallback for undefined types
+    }
+}
+
 // FM Synthesis Kernel
 __global__ void
 FMSynthesisWithEnvelope(FMSynthParams params, float *outputSignal, int sampleRate, int signalLength)
@@ -91,20 +120,20 @@ FMSynthesisWithEnvelope(FMSynthParams params, float *outputSignal, int sampleRat
     if (idx < signalLength)
     {
         float time = (float)idx / sampleRate;
+        float phase = 2.0f * PI * params.carrierFreq * time;
 
         // Vary the frequencies over time (e.g., a slow glide for both carrier and modulator)
         float carrierFreq = initialCarrierFreq + sinf(time * 0.1f) * 50.0f;      // Vary by 50Hz
         float modulatorFreq = initialModulatorFreq + sinf(time * 0.05f) * 25.0f; // Vary by 25Hz
 
-        // Apply the ADSR envelope
-        float envelope = ApplyEnvelope(time, attackTime, decayTime, sustainLevel, releaseTime, noteDuration);
+        // Modulate the carrier frequency
+        phase += params.modulationIndex * sinf(2.0f * PI * modulatorFreq * time);
 
-        // FM synthesis equation: y(t) = A * sin(2 * pi * f_carrier * t + I * sin(2 * pi * f_modulator * t))
-        // Modulation
-        float modulator = modulationIndex * sinf(2.0f * M_PI * modulatorFreq * time);
+        // Apply the envelope
+        float envelope = ApplyEnvelope(time, params.attackTime, params.decayTime, params.sustainLevel, params.releaseTime, params.noteDuration);
 
-        // Carrier signal with envelope applied
-        float signal = envelope * amplitude * sinf(2.0f * M_PI * carrierFreq * time + modulator);
+        // Generate the waveform
+        float signal = params.amplitude * envelope * GenerateWaveform(params.waveformType, phase);
 
         // Store the result
         outputSignal[idx] = signal;
@@ -112,14 +141,7 @@ FMSynthesisWithEnvelope(FMSynthParams params, float *outputSignal, int sampleRat
 }
 
 static void
-RunFMSynthesis(
-    float *outputSignal,
-    int signalLength,
-    int sampleRate,
-    float carrierFreq,
-    float modulatorFreq,
-    float modulationIndex,
-    float amplitude)
+RunFMSynthesis(float *outputSignal, FMSynthParams params)
 {
     printf("\tRunning FM Synthesis...\n");
 
@@ -130,17 +152,6 @@ RunFMSynthesis(
     // Launch the kernel
     dim3 blockDim(256);
     dim3 gridDim((signalLength + blockDim.x - 1) / blockDim.x);
-
-    FMSynthParams params;
-    params.carrierFreq = carrierFreq;
-    params.modulatorFreq = modulatorFreq;
-    params.modulationIndex = modulationIndex;
-    params.amplitude = amplitude;
-    params.attackTime = attackTime;
-    params.decayTime = decayTime;
-    params.sustainLevel = sustainLevel;
-    params.releaseTime = releaseTime;
-    params.noteDuration = noteDuration;
 
     FMSynthesisWithEnvelope<<<gridDim, blockDim>>>(
         params,
@@ -172,14 +183,19 @@ int main(int argc, char **argv)
     HIP_ERRCHK(hipEventCreate(&stopEvent));
     HIP_ERRCHK(hipEventRecord(startEvent, 0));
 
-    RunFMSynthesis(
-        outputSignal.data(),
-        signalLength,
-        sampleRate,
-        initialCarrierFreq,
-        initialModulatorFreq,
-        modulationIndex,
-        amplitude);
+    FMSynthParams params;
+    params.carrierFreq = initialCarrierFreq;
+    params.modulatorFreq = initialModulatorFreq;
+    params.modulationIndex = modulationIndex;
+    params.amplitude = amplitude;
+    params.attackTime = attackTime;
+    params.decayTime = decayTime;
+    params.sustainLevel = sustainLevel;
+    params.releaseTime = releaseTime;
+    params.noteDuration = noteDuration;
+    params.waveformType = WaveformType::Triangle;
+
+    RunFMSynthesis(outputSignal.data(), params);
 
     HIP_ERRCHK(hipEventRecord(stopEvent, 0));
     HIP_ERRCHK(hipEventSynchronize(stopEvent));
