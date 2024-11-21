@@ -127,8 +127,8 @@ FMSynthesisWithEnvelope(FMSynthParams params, float *outputSignal)
         float phase = 2.0f * PI * params.carrierFreq * time;
 
         // Vary the frequencies over time (e.g., a slow glide for both carrier and modulator)
-        float carrierFreq = initialCarrierFreq + __sinf(time * 0.1f) * 50.0f;      // Vary by 50Hz
-        float modulatorFreq = initialModulatorFreq + __sinf(time * 0.05f) * 25.0f; // Vary by 25Hz
+        float carrierFreq = initialCarrierFreq + __sinf(time * 0.1f) * 1200.0f;     // Vary by 1.2kHz
+        float modulatorFreq = initialModulatorFreq + __sinf(time * 0.05f) * 600.0f; // Vary by 600Hz
 
         // Modulate the carrier frequency
         phase += params.modulationIndex * __sinf(2.0f * PI * modulatorFreq * time);
@@ -219,8 +219,10 @@ int main(int argc, char **argv)
     HIP_ERRCHK(hipEventElapsedTime(&milliseconds, startEvent, stopEvent));
     printf("\tKernel execution time: %.3f ms\n", milliseconds);
 
-    int bitDepth = 16;
-    WriteWAVFile("output_32bit_48kHz.wav", outputSignal.data(), params.signalLength, params.sampleRate, bitDepth);
+    int bitDepth = 32;
+    char fileName[50];
+    sprintf(fileName, "output_%dbit_%dkHz.wav", bitDepth, params.sampleRate / 1000);
+    WriteWAVFile(fileName, outputSignal.data(), params.signalLength, params.sampleRate, bitDepth);
 
     // Free host memory
     outputSignal.clear();
