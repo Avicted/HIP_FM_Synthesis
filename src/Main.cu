@@ -9,7 +9,7 @@
 // Define parameters for the synthesis
 const int sampleRate = 48000;        // Default: 48kHz. Allow user input for other rates like 44100, 96000, etc.
 const int signalLengthInSeconds = 5; // 5 seconds of sound
-int signalLength = sampleRate * signalLengthInSeconds;
+const int signalLength = sampleRate * signalLengthInSeconds;
 const float initialCarrierFreq = 440.0f;   // note (440 Hz) for FM synthesis
 const float initialModulatorFreq = 220.0f; // Modulation frequency
 const float modulationIndex = 1.0f;        // Depth of modulation
