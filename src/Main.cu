@@ -115,28 +115,25 @@ ApplyEnvelope(
     float releaseTime,
     float noteDuration)
 {
+    float envelope = 0.0f;
     if (time < attackTime)
     {
-        // Attack phase: Linearly increase amplitude
-        return time / attackTime;
+        envelope = time / attackTime;
     }
     else if (time < attackTime + decayTime)
     {
-        // Decay phase: Linearly decrease amplitude to the sustain level
-        return 1.0f - ((time - attackTime) / decayTime) * (1.0f - sustainLevel);
+        envelope = 1.0f - ((time - attackTime) / decayTime) * (1.0f - sustainLevel);
     }
     else if (time < noteDuration - releaseTime)
     {
-        // Sustain phase: Maintain the sustain level
-        return sustainLevel;
+        envelope = sustainLevel;
     }
     else if (time < noteDuration)
     {
-        // Release phase: Linearly decrease amplitude to 0
-        return sustainLevel * (1.0f - (time - (noteDuration - releaseTime)) / releaseTime);
+        envelope = sustainLevel * (1.0f - (time - (noteDuration - releaseTime)) / releaseTime);
     }
-    // After release, amplitude is 0
-    return 0.0f;
+
+    return envelope;
 }
 
 // FM Synthesis Kernel
@@ -316,8 +313,10 @@ int main(int argc, char **argv)
 
     HelloWorldKernel<<<1, 1>>>();
 
-    // Start to measure time
-    auto start = std::chrono::high_resolution_clock::now();
+    hipEvent_t startEvent, stopEvent;
+    HIP_ERRCHK(hipEventCreate(&startEvent));
+    HIP_ERRCHK(hipEventCreate(&stopEvent));
+    HIP_ERRCHK(hipEventRecord(startEvent, 0));
 
     RunFMSynthesis(
         outputSignal.data(),
@@ -328,14 +327,15 @@ int main(int argc, char **argv)
         modulationIndex,
         amplitude);
 
+    HIP_ERRCHK(hipEventRecord(stopEvent, 0));
+    HIP_ERRCHK(hipEventSynchronize(stopEvent));
+
+    float milliseconds = 0.0f;
+    HIP_ERRCHK(hipEventElapsedTime(&milliseconds, startEvent, stopEvent));
+    printf("Kernel execution time: %.3f ms\n", milliseconds);
+
     int bitDepth = 16;
     WriteWAVFile("output_32bit_48kHz.wav", outputSignal.data(), signalLength, sampleRate, bitDepth);
-
-    // Stop measuring time
-    auto end = std::chrono::high_resolution_clock::now();
-    std::chrono::duration<double> elapsed = end - start;
-    printf("\tElapsed time: %f seconds\n", elapsed.count());
-    printf("\tElapsed time: %f milliseconds\n", elapsed.count() * 1000);
 
     // Free host memory
     outputSignal.clear();
