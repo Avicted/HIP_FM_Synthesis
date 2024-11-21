@@ -39,6 +39,8 @@ struct FMSynthParams
 // Create host buffer for the output signal
 std::vector<float> outputSignal(signalLength);
 
+// -----------------------------------------------------------------------
+
 // HIP error handling macro
 #define HIP_ERRCHK(err) (hip_errchk(err, __FILE__, __LINE__))
 static inline void hip_errchk(hipError_t err, const char *file, int line)
@@ -300,12 +302,12 @@ WriteWAVFile(const char *filename, float *samples, int numSamples, int sampleRat
     }
 
     fclose(file);
-    printf("WAV file written: %s\n", filename);
+    printf("\tWAV file written: %s\n", filename);
 }
 
 int main(int argc, char **argv)
 {
-    printf("\tHello from CUDA!\n");
+    printf("\tHello from HIP!\n");
 
     GetCudaDevices();
 
@@ -332,7 +334,7 @@ int main(int argc, char **argv)
 
     float milliseconds = 0.0f;
     HIP_ERRCHK(hipEventElapsedTime(&milliseconds, startEvent, stopEvent));
-    printf("Kernel execution time: %.3f ms\n", milliseconds);
+    printf("\tKernel execution time: %.3f ms\n", milliseconds);
 
     int bitDepth = 16;
     WriteWAVFile("output_32bit_48kHz.wav", outputSignal.data(), signalLength, sampleRate, bitDepth);
