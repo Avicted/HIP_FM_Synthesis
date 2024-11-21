@@ -13,6 +13,8 @@ FM Synthesis:
 
  - Supports 16, 24 and 32 -bit PCM Output at variable sample rates.
 
+ - Multiple waveforms supported: Sine, Square, Triangle, Sawtooth.
+
 ## Dependencies
  - Ensure that your system supports HIP (either via AMD ROCm or via NVIDIA CUDA).
  - Make
