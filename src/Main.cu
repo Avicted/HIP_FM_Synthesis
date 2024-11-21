@@ -7,8 +7,9 @@
 #define PI acos(-1.0f)
 
 // Define parameters for the synthesis
-const int sampleRate = 44100;
-const int signalLength = sampleRate * 5;   // 5 seconds of sound
+const int sampleRate = 48000;        // Default: 48kHz. Allow user input for other rates like 44100, 96000, etc.
+const int signalLengthInSeconds = 5; // 5 seconds of sound
+int signalLength = sampleRate * signalLengthInSeconds;
 const float initialCarrierFreq = 440.0f;   // note (440 Hz) for FM synthesis
 const float initialModulatorFreq = 220.0f; // Modulation frequency
 const float modulationIndex = 1.0f;        // Depth of modulation
@@ -36,7 +37,7 @@ struct FMSynthParams
 };
 
 // Create host buffer for the output signal
-std::vector<float> FMSignal(signalLength);
+std::vector<float> outputSignal(signalLength);
 
 // HIP error handling macro
 #define HIP_ERRCHK(err) (hip_errchk(err, __FILE__, __LINE__))
@@ -212,52 +213,97 @@ RunFMSynthesis(
     printf("\tFM Synthesis completed!\n");
 }
 
-static void
-SaveSignalToWAV(
-    const char *filename,
-    float *signal,
-    int sampleRate,
-    int signalLength)
+// 16-bit PCM Output
+static int16_t
+ConvertTo16Bit(float sample)
 {
-    printf("\tSaving signal to WAV file...\n");
+    return (int16_t)(sample * 32767.0f);
+}
 
-    // Save the output signal to a .wav file
-    FILE *file = fopen("FM_Synthesis.wav", "wb");
-    if (file)
+// 24-bit PCM Output
+static void
+Write24BitSample(FILE *file, float sample)
+{
+    int32_t intSample = (int32_t)(sample * 8388607.0f); // Scale to 24-bit
+    uint8_t bytes[3] = {
+        (uint8_t)(intSample & 0xFF),
+        (uint8_t)((intSample >> 8) & 0xFF),
+        (uint8_t)((intSample >> 16) & 0xFF)};
+    fwrite(bytes, 1, 3, file);
+}
+
+// 32-bit Float Output
+static void
+Write32BitFloatSample(FILE *file, float sample)
+{
+    fwrite(&sample, sizeof(float), 1, file);
+}
+
+static void
+WriteWAVHeader(FILE *file, int sampleRate, int numChannels, int bitDepth, int numSamples)
+{
+    int byteRate = sampleRate * numChannels * (bitDepth / 8);
+    int blockAlign = numChannels * (bitDepth / 8);
+    int dataChunkSize = numSamples * blockAlign;
+    int fileSize = 36 + dataChunkSize;
+
+    // Write RIFF header
+    fwrite("RIFF", 1, 4, file);
+    fwrite(&fileSize, 4, 1, file);
+    fwrite("WAVE", 1, 4, file);
+
+    // Write fmt subchunk
+    fwrite("fmt ", 1, 4, file);
+    int subchunk1Size = 16; // PCM header size
+    fwrite(&subchunk1Size, 4, 1, file);
+
+    short audioFormat = (bitDepth == 32) ? 3 : 1; // 3 = IEEE float, 1 = PCM
+    fwrite(&audioFormat, 2, 1, file);
+    fwrite(&numChannels, 2, 1, file);
+    fwrite(&sampleRate, 4, 1, file);
+    fwrite(&byteRate, 4, 1, file);
+    fwrite(&blockAlign, 2, 1, file);
+    fwrite(&bitDepth, 2, 1, file);
+
+    // Write data subchunk header
+    fwrite("data", 1, 4, file);
+    fwrite(&dataChunkSize, 4, 1, file);
+}
+
+static void
+WriteWAVFile(const char *filename, float *samples, int numSamples, int sampleRate, int bitDepth)
+{
+    FILE *file = fopen(filename, "wb");
+    if (!file)
     {
-        // Write the header
-        int bitsPerSample = 16;
-        int byteRate = sampleRate * bitsPerSample / 8;
-        int blockAlign = bitsPerSample / 8;
-        int dataSize = signalLength * blockAlign;
-
-        fwrite("RIFF", 1, 4, file);
-        int fileSize = 36 + dataSize;
-        fwrite(&fileSize, 4, 1, file);
-        fwrite("WAVE", 1, 4, file);
-        fwrite("fmt ", 1, 4, file);
-        int fmtSize = 16;
-        fwrite(&fmtSize, 4, 1, file);
-        short format = 1;
-        fwrite(&format, 2, 1, file);
-        short channels = 1;
-        fwrite(&channels, 2, 1, file);
-        fwrite(&sampleRate, 4, 1, file);
-        fwrite(&byteRate, 4, 1, file);
-        fwrite(&blockAlign, 2, 1, file);
-        fwrite(&bitsPerSample, 2, 1, file);
-        fwrite("data", 1, 4, file);
-        fwrite(&dataSize, 4, 1, file);
-
-        // Write the audio data
-        for (int i = 0; i < signalLength; i++)
-        {
-            short sample = (short)(FMSignal[i] * 32767.0f);
-            fwrite(&sample, 2, 1, file);
-        }
-
-        fclose(file);
+        printf("Failed to open file for writing\n");
+        return;
     }
+
+    int numChannels = 1; // Mono
+    WriteWAVHeader(file, sampleRate, numChannels, bitDepth, numSamples);
+
+    for (int i = 0; i < numSamples; i++)
+    {
+        float sample = samples[i];
+
+        if (bitDepth == 16)
+        {
+            int16_t pcmSample = ConvertTo16Bit(sample);
+            fwrite(&pcmSample, sizeof(int16_t), 1, file);
+        }
+        else if (bitDepth == 24)
+        {
+            Write24BitSample(file, sample);
+        }
+        else if (bitDepth == 32)
+        {
+            Write32BitFloatSample(file, sample);
+        }
+    }
+
+    fclose(file);
+    printf("WAV file written: %s\n", filename);
 }
 
 int main(int argc, char **argv)
@@ -274,7 +320,7 @@ int main(int argc, char **argv)
     auto start = std::chrono::high_resolution_clock::now();
 
     RunFMSynthesis(
-        FMSignal.data(),
+        outputSignal.data(),
         signalLength,
         sampleRate,
         initialCarrierFreq,
@@ -282,7 +328,8 @@ int main(int argc, char **argv)
         modulationIndex,
         amplitude);
 
-    SaveSignalToWAV("FM_Synthesis.wav", FMSignal.data(), sampleRate, signalLength);
+    int bitDepth = 16;
+    WriteWAVFile("output_32bit_48kHz.wav", outputSignal.data(), signalLength, sampleRate, bitDepth);
 
     // Stop measuring time
     auto end = std::chrono::high_resolution_clock::now();
@@ -291,7 +338,7 @@ int main(int argc, char **argv)
     printf("\tElapsed time: %f milliseconds\n", elapsed.count() * 1000);
 
     // Free host memory
-    FMSignal.clear();
+    outputSignal.clear();
 
     return 0;
 }
