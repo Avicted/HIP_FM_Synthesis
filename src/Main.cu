@@ -39,6 +39,10 @@ enum class WaveformType
 
 struct FMSynthParams
 {
+    int sampleRate;
+    int signalLengthInSeconds;
+    int signalLength;
+
     float carrierFreq;
     float modulatorFreq;
     float modulationIndex;
@@ -114,12 +118,12 @@ GenerateWaveform(WaveformType type, float phase)
 
 // FM Synthesis Kernel
 __global__ void
-FMSynthesisWithEnvelope(FMSynthParams params, float *outputSignal, int sampleRate, int signalLength)
+FMSynthesisWithEnvelope(FMSynthParams params, float *outputSignal)
 {
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
-    if (idx < signalLength)
+    if (idx < params.signalLength)
     {
-        float time = (float)idx / sampleRate;
+        float time = (float)idx / params.sampleRate;
         float phase = 2.0f * PI * params.carrierFreq * time;
 
         // Vary the frequencies over time (e.g., a slow glide for both carrier and modulator)
@@ -130,7 +134,13 @@ FMSynthesisWithEnvelope(FMSynthParams params, float *outputSignal, int sampleRat
         phase += params.modulationIndex * sinf(2.0f * PI * modulatorFreq * time);
 
         // Apply the envelope
-        float envelope = ApplyEnvelope(time, params.attackTime, params.decayTime, params.sustainLevel, params.releaseTime, params.noteDuration);
+        float envelope = ApplyEnvelope(
+            time,
+            params.attackTime,
+            params.decayTime,
+            params.sustainLevel,
+            params.releaseTime,
+            params.noteDuration);
 
         // Generate the waveform
         float signal = params.amplitude * envelope * GenerateWaveform(params.waveformType, phase);
@@ -153,11 +163,7 @@ RunFMSynthesis(float *outputSignal, FMSynthParams params)
     dim3 blockDim(256);
     dim3 gridDim((signalLength + blockDim.x - 1) / blockDim.x);
 
-    FMSynthesisWithEnvelope<<<gridDim, blockDim>>>(
-        params,
-        d_outputSignal,
-        sampleRate,
-        signalLength);
+    FMSynthesisWithEnvelope<<<gridDim, blockDim>>>(params, d_outputSignal);
 
     HIP_ERRCHK(hipDeviceSynchronize());
 
@@ -184,10 +190,15 @@ int main(int argc, char **argv)
     HIP_ERRCHK(hipEventRecord(startEvent, 0));
 
     FMSynthParams params;
+    params.sampleRate = sampleRate;
+    params.signalLengthInSeconds = signalLengthInSeconds;
+    params.signalLength = signalLength;
+
     params.carrierFreq = initialCarrierFreq;
     params.modulatorFreq = initialModulatorFreq;
     params.modulationIndex = modulationIndex;
     params.amplitude = amplitude;
+
     params.attackTime = attackTime;
     params.decayTime = decayTime;
     params.sustainLevel = sustainLevel;
@@ -195,6 +206,7 @@ int main(int argc, char **argv)
     params.noteDuration = noteDuration;
     params.waveformType = WaveformType::Triangle;
 
+    // Setup the memory and call the kernel
     RunFMSynthesis(outputSignal.data(), params);
 
     HIP_ERRCHK(hipEventRecord(stopEvent, 0));
@@ -205,7 +217,7 @@ int main(int argc, char **argv)
     printf("\tKernel execution time: %.3f ms\n", milliseconds);
 
     int bitDepth = 16;
-    WriteWAVFile("output_32bit_48kHz.wav", outputSignal.data(), signalLength, sampleRate, bitDepth);
+    WriteWAVFile("output_32bit_48kHz.wav", outputSignal.data(), params.signalLength, params.signalLength, bitDepth);
 
     // Free host memory
     outputSignal.clear();
