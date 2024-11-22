@@ -5,7 +5,9 @@ HIPCC = hipcc
 MIDIFILE_LIB = submodules/midifile/lib/libmidifile.a
 
 # Flags
-HIPFLAGS = -O2 -I/usr/include -I/opt/rocm/include -Isubmodules/midifile/include
+HIPFLAGS = -O2 -ffp-contract=off
+
+INCLUDES = -I/usr/include -I/opt/rocm/include -Isubmodules/midifile/include
 
 LIBS = -Lsubmodules/midifile/lib -l:libmidifile.a
 
@@ -22,7 +24,7 @@ all: midiFile $(EXE)
 $(EXE): $(SRC)
 	$(shell rm -f *.wav)
 	$(shell mkdir -p build)
-	$(HIPCC) $(HIPFLAGS) -o $(EXE) $(SRC) $(LIBS)
+	$(HIPCC) $(HIPFLAGS) $(INCLUDES) -o $(EXE) $(SRC) $(LIBS)
 
 # Build the MidiFile library
 midiFile:
