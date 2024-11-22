@@ -15,6 +15,8 @@ FM Synthesis:
 
  - Multiple waveforms supported: Sine, Square, Triangle, Sawtooth.
 
+ - Can read, parse and generate audio data from a MIDI file.
+
 ## Dependencies
  - Ensure that your system supports HIP (either via AMD ROCm or via NVIDIA CUDA).
  - Make
