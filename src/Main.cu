@@ -16,8 +16,8 @@
 #include "WAV_Helper.cu"
 
 // Define parameters for the synthesis
-const int sampleRate = 48000;   // Default: 48kHz. Allow user input for other rates like 44100, 96000, etc.
-int signalLengthInSeconds = 20; // 20 seconds of sound
+const i32 sampleRate = 48000;   // Default: 48kHz. Allow user input for other rates like 44100, 96000, etc.
+i32 signalLengthInSeconds = 20; // 20 seconds of sound
 unsigned long long signalLength = sampleRate * signalLengthInSeconds;
 
 const f64 initialCarrierFreq = 440.0f;   // note (440 Hz) for FM synthesis
@@ -42,8 +42,8 @@ enum class WaveformType
 
 struct FMSynthParams
 {
-    int sampleRate;
-    int signalLengthInSeconds;
+    i32 sampleRate;
+    i32 signalLengthInSeconds;
     unsigned long long signalLength;
 
     f64 carrierFreq;
@@ -62,10 +62,10 @@ struct FMSynthParams
 
 struct MidiNote
 {
-    int note;      // MIDI note number
+    i32 note;      // MIDI note number
     f64 startTime; // Note start time in seconds
     f64 duration;  // Note duration in seconds
-    int velocity;  // Note velocity
+    i32 velocity;  // Note velocity
 };
 
 // Create host buffer for the output signal
@@ -74,7 +74,7 @@ std::vector<double> outputSignal;
 // -----------------------------------------------------------------------
 
 internal std::vector<MidiNote>
-ParseMidi(const std::string &filename, int sampleRate)
+ParseMidi(const std::string &filename, i32 sampleRate)
 {
     smf::MidiFile midiFile;
     if (!midiFile.read(filename))
@@ -86,9 +86,9 @@ ParseMidi(const std::string &filename, int sampleRate)
     midiFile.linkNotePairs();
 
     std::vector<MidiNote> notes;
-    for (int track = 0; track < midiFile.getTrackCount(); ++track)
+    for (i32 track = 0; track < midiFile.getTrackCount(); ++track)
     {
-        for (int event = 0; event < midiFile[track].size(); ++event)
+        for (i32 event = 0; event < midiFile[track].size(); ++event)
         {
             auto &midiEvent = midiFile[track][event];
             if (!midiEvent.isNoteOn())
@@ -96,8 +96,8 @@ ParseMidi(const std::string &filename, int sampleRate)
                 continue;
             }
 
-            int note = midiEvent.getKeyNumber();
-            int velocity = midiEvent.getVelocity();
+            i32 note = midiEvent.getKeyNumber();
+            i32 velocity = midiEvent.getVelocity();
             f64 startTime = midiEvent.seconds;
 
             if (midiEvent.getLinkedEvent() != nullptr)
@@ -176,9 +176,9 @@ GenerateWaveform(WaveformType type, f64 phase)
 
 // FM Synthesis Kernel
 __global__ void
-FMSynthesis(FMSynthParams params, f64 *outputSignal, MidiNote *midiNotes, int numNotes)
+FMSynthesis(FMSynthParams params, f64 *outputSignal, MidiNote *midiNotes, i32 numNotes)
 {
-    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    i32 idx = blockIdx.x * blockDim.x + threadIdx.x;
     if (idx >= params.signalLength)
     {
         return;
@@ -187,7 +187,7 @@ FMSynthesis(FMSynthParams params, f64 *outputSignal, MidiNote *midiNotes, int nu
     f64 time = (double)idx / params.sampleRate;
     f64 signal = 0.0f;
 
-    for (int i = 0; i < numNotes; ++i)
+    for (i32 i = 0; i < numNotes; ++i)
     {
         const MidiNote &note = midiNotes[i];
         if (time < note.startTime || time >= note.startTime + note.duration)
@@ -222,7 +222,7 @@ FMSynthesis(FMSynthParams params, f64 *outputSignal, MidiNote *midiNotes, int nu
 }
 
 internal void
-RunFMSynthesis(f64 *outputSignal, FMSynthParams params, MidiNote *notes, int numNotes)
+RunFMSynthesis(f64 *outputSignal, FMSynthParams params, MidiNote *notes, i32 numNotes)
 {
     printf("\tRunning FM Synthesis...\n");
 
@@ -251,7 +251,7 @@ RunFMSynthesis(f64 *outputSignal, FMSynthParams params, MidiNote *notes, int num
     printf("\tFM Synthesis completed!\n");
 }
 
-int main(int argc, char **argv)
+i32 main(i32 argc, char **argv)
 {
     printf("\tHello from HIP!\n");
 
@@ -259,7 +259,7 @@ int main(int argc, char **argv)
     const std::string midiFile = "Sonic the Hedgehog 2 - Chemical Plant Zone.mid";
     std::vector<MidiNote> notes = ParseMidi(midiFile, sampleRate);
 
-    // Print the extracted notes
+    // Pri32 the extracted notes
     for (const auto &note : notes)
     {
         std::cout << "Note: " << note.note
@@ -310,7 +310,7 @@ int main(int argc, char **argv)
     printf("\tKernel execution time: %.3f ms\n", milliseconds);
 
     // 16, 24, 32-bit WAV output
-    int bitDepth = 24;
+    i32 bitDepth = 24;
     char fileName[50];
     sprintf(fileName, "output_%dbit_%dkHz.wav", bitDepth, params.sampleRate / 1000);
     WriteWAVFile(fileName, outputSignal.data(), params.signalLength, params.sampleRate, bitDepth);

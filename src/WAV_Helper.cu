@@ -28,12 +28,12 @@ Write32BitDoubleSample(FILE *file, double sample)
 }
 
 internal void
-WriteWAVHeader(FILE *file, int sampleRate, int numChannels, int bitDepth, int numSamples)
+WriteWAVHeader(FILE *file, i32 sampleRate, i32 numChannels, i32 bitDepth, i32 numSamples)
 {
-    int byteRate = sampleRate * numChannels * (bitDepth / 8);
-    int blockAlign = numChannels * (bitDepth / 8);
-    int dataChunkSize = numSamples * blockAlign;
-    int fileSize = 36 + dataChunkSize;
+    i32 byteRate = sampleRate * numChannels * (bitDepth / 8);
+    i32 blockAlign = numChannels * (bitDepth / 8);
+    i32 dataChunkSize = numSamples * blockAlign;
+    i32 fileSize = 36 + dataChunkSize;
 
     // Write RIFF header
     fwrite("RIFF", 1, 4, file);
@@ -42,7 +42,7 @@ WriteWAVHeader(FILE *file, int sampleRate, int numChannels, int bitDepth, int nu
 
     // Write fmt subchunk
     fwrite("fmt ", 1, 4, file);
-    int subchunk1Size = 16; // PCM header size
+    i32 subchunk1Size = 16; // PCM header size
     fwrite(&subchunk1Size, 4, 1, file);
 
     short audioFormat = (bitDepth == 32) ? 3 : 1; // 3 = IEEE double, 1 = PCM
@@ -63,8 +63,8 @@ WriteWAVFile(
     const char *filename,
     double *samples,
     unsigned long long numSamples,
-    int sampleRate,
-    int bitDepth)
+    i32 sampleRate,
+    i32 bitDepth)
 {
     FILE *file = fopen(filename, "wb");
     if (!file)
@@ -73,10 +73,10 @@ WriteWAVFile(
         return;
     }
 
-    int numChannels = 1; // Mono
+    i32 numChannels = 1; // Mono
     WriteWAVHeader(file, sampleRate, numChannels, bitDepth, numSamples);
 
-    for (int i = 0; i < numSamples; i++)
+    for (i32 i = 0; i < numSamples; i++)
     {
         double sample = samples[i];
 

@@ -2,7 +2,7 @@
 
 // HIP error handling macro
 #define HIP_ERRCHK(err) (hip_errchk(err, __FILE__, __LINE__))
-internal inline void hip_errchk(hipError_t err, const char *file, int line)
+internal inline void hip_errchk(hipError_t err, const char *file, i32 line)
 {
     if (err != hipSuccess)
     {
@@ -14,7 +14,7 @@ internal inline void hip_errchk(hipError_t err, const char *file, int line)
 internal void
 GetCudaDevices(void)
 {
-    int deviceCount = 0;
+    i32 deviceCount = 0;
     hipError_t Error = hipGetDeviceCount(&deviceCount);
 
     if (Error != hipSuccess)
@@ -27,7 +27,7 @@ GetCudaDevices(void)
         printf("\tCUDA Device Count: %d\n", deviceCount);
     }
 
-    for (int i = 0; i < deviceCount; i++)
+    for (i32 i = 0; i < deviceCount; i++)
     {
         hipDeviceProp_t prop;
         hipError_t Error = hipGetDeviceProperties(&prop, i);
