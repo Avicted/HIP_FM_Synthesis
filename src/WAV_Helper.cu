@@ -2,15 +2,14 @@
 static int16_t
 ConvertTo16Bit(double sample)
 {
-    // return (int16_t)(sample * 32767.0f);
-    return (int16_t)((float)sample * 32767.0f);
+    return (int16_t)((double)sample * 32767.0f);
 }
 
 // 24-bit PCM Output
 static void
 Write24BitSample(FILE *file, double sample)
 {
-    int32_t intSample = (int32_t)((float)sample * 8388607.0f); // Scale to 24-bit
+    int32_t intSample = (int32_t)((double)sample * 8388607.0f); // Scale to 24-bit
     uint8_t bytes[3] = {
         (uint8_t)(intSample & 0xFF),
         (uint8_t)((intSample >> 8) & 0xFF),
@@ -22,8 +21,8 @@ Write24BitSample(FILE *file, double sample)
 static void
 Write32BitDoubleSample(FILE *file, double sample)
 {
-    float floatSample = (float)sample; // Convert double to float for 32-bit float output
-    fwrite(&floatSample, sizeof(float), 1, file);
+    double floatSample = (double)sample; // Convert double to float for 32-bit float output
+    fwrite(&floatSample, sizeof(double), 1, file);
 }
 
 static void
