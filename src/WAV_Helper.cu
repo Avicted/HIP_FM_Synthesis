@@ -1,15 +1,16 @@
 // 16-bit PCM Output
 static int16_t
-ConvertTo16Bit(float sample)
+ConvertTo16Bit(double sample)
 {
-    return (int16_t)(sample * 32767.0f);
+    // return (int16_t)(sample * 32767.0f);
+    return (int16_t)((float)sample * 32767.0f);
 }
 
 // 24-bit PCM Output
 static void
-Write24BitSample(FILE *file, float sample)
+Write24BitSample(FILE *file, double sample)
 {
-    int32_t intSample = (int32_t)(sample * 8388607.0f); // Scale to 24-bit
+    int32_t intSample = (int32_t)((float)sample * 8388607.0f); // Scale to 24-bit
     uint8_t bytes[3] = {
         (uint8_t)(intSample & 0xFF),
         (uint8_t)((intSample >> 8) & 0xFF),
@@ -17,11 +18,12 @@ Write24BitSample(FILE *file, float sample)
     fwrite(bytes, 1, 3, file);
 }
 
-// 32-bit Float Output
+// 32-bit double Output
 static void
-Write32BitFloatSample(FILE *file, float sample)
+Write32BitDoubleSample(FILE *file, double sample)
 {
-    fwrite(&sample, sizeof(float), 1, file);
+    float floatSample = (float)sample; // Convert double to float for 32-bit float output
+    fwrite(&floatSample, sizeof(float), 1, file);
 }
 
 static void
@@ -42,7 +44,7 @@ WriteWAVHeader(FILE *file, int sampleRate, int numChannels, int bitDepth, int nu
     int subchunk1Size = 16; // PCM header size
     fwrite(&subchunk1Size, 4, 1, file);
 
-    short audioFormat = (bitDepth == 32) ? 3 : 1; // 3 = IEEE float, 1 = PCM
+    short audioFormat = (bitDepth == 32) ? 3 : 1; // 3 = IEEE double, 1 = PCM
     fwrite(&audioFormat, 2, 1, file);
     fwrite(&numChannels, 2, 1, file);
     fwrite(&sampleRate, 4, 1, file);
@@ -58,7 +60,7 @@ WriteWAVHeader(FILE *file, int sampleRate, int numChannels, int bitDepth, int nu
 static void
 WriteWAVFile(
     const char *filename,
-    float *samples,
+    double *samples,
     unsigned long long numSamples,
     int sampleRate,
     int bitDepth)
@@ -75,7 +77,7 @@ WriteWAVFile(
 
     for (int i = 0; i < numSamples; i++)
     {
-        float sample = samples[i];
+        double sample = samples[i];
 
         if (bitDepth == 16)
         {
@@ -88,7 +90,7 @@ WriteWAVFile(
         }
         else if (bitDepth == 32)
         {
-            Write32BitFloatSample(file, sample);
+            Write32BitDoubleSample(file, sample);
         }
     }
 

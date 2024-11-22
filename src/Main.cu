@@ -1,7 +1,8 @@
 // Standard library headers
 #include <stdio.h>
-#include <math.h>
+#include <cmath>
 #include <vector>
+#include <iostream>
 
 // HIP header
 #include <hip/hip_runtime.h>
@@ -16,21 +17,21 @@
 #define PI acos(-1.0f)
 
 // Define parameters for the synthesis
-const int sampleRate = 48000;         // Default: 48kHz. Allow user input for other rates like 44100, 96000, etc.
-const int signalLengthInSeconds = 20; // 20 seconds of sound
-const unsigned long long signalLength = sampleRate * signalLengthInSeconds;
+const int sampleRate = 48000;   // Default: 48kHz. Allow user input for other rates like 44100, 96000, etc.
+int signalLengthInSeconds = 20; // 20 seconds of sound
+unsigned long long signalLength = sampleRate * signalLengthInSeconds;
 
-const float initialCarrierFreq = 440.0f;          // note (440 Hz) for FM synthesis
-const float initialModulatorFreq = 220.0f * 8.0f; // Modulation frequency
-const float modulationIndex = 0.5f;               // Depth of modulation
-const float amplitude = 0.20f;                    // Volume
+const double initialCarrierFreq = 440.0f;   // note (440 Hz) for FM synthesis
+const double initialModulatorFreq = 880.0f; // Modulation frequency
+const double modulationIndex = 0.1f;        // Depth of modulation
+const double amplitude = 0.20f;             // Volume
 
 // ADSR (Attack, Decay, Sustain, Release) envelope parameters
-const float attackTime = 0.0050f; // Attack duration in seconds
-const float decayTime = 0.40f;    // Decay duration in seconds
-const float sustainLevel = 0.50f; // Sustain amplitude (0.0 to 1.0)
-const float releaseTime = 0.20f;  // Release duration in seconds
-const float noteDuration = signalLengthInSeconds;
+const double attackTime = 0.0050f; // Attack duration in seconds
+const double decayTime = 0.40f;    // Decay duration in seconds
+const double sustainLevel = 0.50f; // Sustain amplitude (0.0 to 1.0)
+const double releaseTime = 0.20f;  // Release duration in seconds
+const double noteDuration = 0.0f;  // = signalLengthInSeconds;
 
 enum class WaveformType
 {
@@ -46,30 +47,30 @@ struct FMSynthParams
     int signalLengthInSeconds;
     unsigned long long signalLength;
 
-    float carrierFreq;
-    float modulatorFreq;
-    float modulationIndex;
-    float amplitude;
+    double carrierFreq;
+    double modulatorFreq;
+    double modulationIndex;
+    double amplitude;
 
-    float attackTime;
-    float decayTime;
-    float sustainLevel;
-    float releaseTime;
-    float noteDuration;
+    double attackTime;
+    double decayTime;
+    double sustainLevel;
+    double releaseTime;
+    double noteDuration;
 
     WaveformType waveformType;
 };
 
 struct MidiNote
 {
-    int note;        // MIDI note number
-    float startTime; // Note start time in seconds
-    float duration;  // Note duration in seconds
-    int velocity;    // Note velocity
+    int note;         // MIDI note number
+    double startTime; // Note start time in seconds
+    double duration;  // Note duration in seconds
+    int velocity;     // Note velocity
 };
 
 // Create host buffer for the output signal
-std::vector<float> outputSignal;
+std::vector<double> outputSignal;
 
 // -----------------------------------------------------------------------
 
@@ -104,11 +105,15 @@ ParseMidi(const std::string &filename, int sampleRate)
             if (midiEvent.getLinkedEvent() != nullptr)
             {
                 double endTime = midiEvent.getLinkedEvent()->seconds;
-                notes.push_back({note, static_cast<float>(startTime),
-                                 static_cast<float>(endTime - startTime), velocity});
+                notes.push_back({note, static_cast<double>(startTime),
+                                 static_cast<double>(endTime - startTime), velocity});
             }
         }
     }
+
+    // Set project parameters
+    signalLengthInSeconds = midiFile.getFileDurationInSeconds();
+    signalLength = sampleRate * signalLengthInSeconds;
 
     return notes;
 }
@@ -119,16 +124,16 @@ HelloWorldKernel(void)
     printf("\tHello from HIP Kernel!\n");
 }
 
-__device__ float
+__device__ double
 ApplyEnvelope(
-    float time,
-    float attackTime,
-    float decayTime,
-    float sustainLevel,
-    float releaseTime,
-    float noteDuration)
+    double time,
+    double attackTime,
+    double decayTime,
+    double sustainLevel,
+    double releaseTime,
+    double noteDuration)
 {
-    float envelope = 0.0f;
+    double envelope = 0.0f;
     if (time < attackTime)
     {
         envelope = time / attackTime;
@@ -145,12 +150,16 @@ ApplyEnvelope(
     {
         envelope = sustainLevel * (1.0f - (time - (noteDuration - releaseTime)) / releaseTime);
     }
+    else
+    {
+        envelope = 0.0f;
+    }
 
     return envelope;
 }
 
-__device__ float
-GenerateWaveform(WaveformType type, float phase)
+__device__ double
+GenerateWaveform(WaveformType type, double phase)
 {
     switch (type)
     {
@@ -169,28 +178,31 @@ GenerateWaveform(WaveformType type, float phase)
 
 // FM Synthesis Kernel
 __global__ void
-FMSynthesis(FMSynthParams params, float *outputSignal, MidiNote *midiNotes, int numNotes)
+FMSynthesis(FMSynthParams params, double *outputSignal, MidiNote *midiNotes, int numNotes)
 {
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
     if (idx >= params.signalLength)
+    {
         return;
+    }
 
-    float time = (float)idx / params.sampleRate;
-    float signal = 0.0f;
+    double time = (double)idx / params.sampleRate;
+    double signal = 0.0f;
 
     for (int i = 0; i < numNotes; ++i)
     {
         const MidiNote &note = midiNotes[i];
         if (time < note.startTime || time >= note.startTime + note.duration)
+        {
             continue;
+        }
 
-        float carrierFreq = 440.0f * powf(2.0f, (note.note - 69) / 12.0f);
-        float modulatorFreq = params.modulatorFreq; // Can vary per note if needed
-        float phase = 2.0f * PI * carrierFreq * time;
-
+        double carrierFreq = 440.0f * powf(2.0f, (note.note - 69) / 12.0f);
+        double modulatorFreq = carrierFreq * 2.0; // params.modulatorFreq; // Can vary per note if needed
+        double phase = fmodf(2.0f * PI * carrierFreq * time, 2.0f * PI);
         phase += params.modulationIndex * __sinf(2.0f * PI * modulatorFreq * time);
 
-        float envelope = ApplyEnvelope(
+        double envelope = ApplyEnvelope(
             time - note.startTime,
             params.attackTime,
             params.decayTime,
@@ -198,22 +210,29 @@ FMSynthesis(FMSynthParams params, float *outputSignal, MidiNote *midiNotes, int 
             params.releaseTime,
             note.duration);
 
-        signal += note.velocity / 127.0f * params.amplitude * envelope *
+        // Signal accumulation
+        signal += note.velocity / 127.0 * params.amplitude * envelope *
                   GenerateWaveform(params.waveformType, phase);
-    }
 
-    outputSignal[idx] = signal;
+        double waveform = GenerateWaveform(params.waveformType, phase);
+
+        // Apply envelope
+        signal *= envelope;
+
+        // Output signal
+        outputSignal[idx] = signal;
+    }
 }
 
 static void
-RunFMSynthesis(float *outputSignal, FMSynthParams params, MidiNote *notes, int numNotes)
+RunFMSynthesis(double *outputSignal, FMSynthParams params, MidiNote *notes, int numNotes)
 {
     printf("\tRunning FM Synthesis...\n");
 
     // Allocate device memory
-    float *d_outputSignal;
+    double *d_outputSignal;
     MidiNote *d_notes;
-    HIP_ERRCHK(hipMalloc(&d_outputSignal, params.signalLength * sizeof(float)));
+    HIP_ERRCHK(hipMalloc(&d_outputSignal, params.signalLength * sizeof(double)));
     HIP_ERRCHK(hipMalloc(&d_notes, numNotes * sizeof(MidiNote)));
 
     // Copy notes to device memory
@@ -228,7 +247,7 @@ RunFMSynthesis(float *outputSignal, FMSynthParams params, MidiNote *notes, int n
     HIP_ERRCHK(hipDeviceSynchronize());
 
     // Copy result back to host
-    HIP_ERRCHK(hipMemcpy(outputSignal, d_outputSignal, params.signalLength * sizeof(float), hipMemcpyDeviceToHost));
+    HIP_ERRCHK(hipMemcpy(outputSignal, d_outputSignal, params.signalLength * sizeof(double), hipMemcpyDeviceToHost));
     HIP_ERRCHK(hipFree(d_outputSignal));
     HIP_ERRCHK(hipFree(d_notes));
 
@@ -293,7 +312,8 @@ int main(int argc, char **argv)
     HIP_ERRCHK(hipEventElapsedTime(&milliseconds, startEvent, stopEvent));
     printf("\tKernel execution time: %.3f ms\n", milliseconds);
 
-    int bitDepth = 32;
+    // 16, 24, 32-bit WAV output
+    int bitDepth = 16;
     char fileName[50];
     sprintf(fileName, "output_%dbit_%dkHz.wav", bitDepth, params.sampleRate / 1000);
     WriteWAVFile(fileName, outputSignal.data(), params.signalLength, params.sampleRate, bitDepth);
