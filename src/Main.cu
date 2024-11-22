@@ -15,8 +15,6 @@
 #include "Utils.cu"
 #include "WAV_Helper.cu"
 
-#define PI acos(-1.0f)
-
 // Define parameters for the synthesis
 const int sampleRate = 48000;   // Default: 48kHz. Allow user input for other rates like 44100, 96000, etc.
 int signalLengthInSeconds = 20; // 20 seconds of sound

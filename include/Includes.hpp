@@ -5,6 +5,8 @@
 #define global_variable static // globaly scoped variable in the same translation unit
 #define internal static        // localy scoped function to the translation unit
 
+#define PI acos(-1.0f)
+
 // Types redefinition ------------------------
 typedef uint8_t u8;
 typedef uint16_t u16;
