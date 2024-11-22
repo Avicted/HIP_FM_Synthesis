@@ -18,8 +18,8 @@
 // -----------------------------------------------------------------------
 
 // Define parameters for the synthesis
-const i32 sampleRate = 48000;   // Default: 48kHz. Allow user input for other rates like 44100, 96000, etc.
-i32 signalLengthInSeconds = 20; // 20 seconds of sound
+const i32 sampleRate = 48000;  // Default: 48kHz. Allow user input for other rates like 44100, 96000, etc.
+i32 signalLengthInSeconds = 0; // Dynamically set based on MIDI file duration
 unsigned long long signalLength = sampleRate * signalLengthInSeconds;
 
 const f64 initialCarrierFreq = 440.0f;   // note (440 Hz) for FM synthesis
