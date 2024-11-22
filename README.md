@@ -54,10 +54,12 @@ The following command generates a .wav file with a 1-second sound clip using the
                 Memory Bus Width: 256
                 Peak Memory Bandwidth: 64.000000
         Hello from HIP Kernel!
+        Memory Usage: 40 megabytes
         Running FM Synthesis...
         FM Synthesis completed!
-        Kernel execution time: 1.601 ms
-        WAV file written: output_32bit_48kHz.wav
+        Kernel execution time: 13.146 ms
+        WAV file written: output_24bit_48kHz.wav
+        Memory Usage: 0 megabytes
 ```
 
 ### Manually Convert .wav to .mp3
