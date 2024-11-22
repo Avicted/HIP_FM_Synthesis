@@ -15,6 +15,8 @@
 #include "Utils.cu"
 #include "WAV_Helper.cu"
 
+// -----------------------------------------------------------------------
+
 // Define parameters for the synthesis
 const i32 sampleRate = 48000;   // Default: 48kHz. Allow user input for other rates like 44100, 96000, etc.
 i32 signalLengthInSeconds = 20; // 20 seconds of sound
@@ -109,7 +111,6 @@ ParseMidi(const std::string &filename, i32 sampleRate)
         }
     }
 
-    // Set project parameters
     signalLengthInSeconds = midiFile.getFileDurationInSeconds();
     signalLength = sampleRate * signalLengthInSeconds;
 
@@ -159,18 +160,25 @@ ApplyEnvelope(
 __device__ double
 GenerateWaveform(WaveformType type, f64 phase)
 {
-    switch (type)
+    if (type == WaveformType::Sine)
     {
-    case WaveformType::Sine:
-        return sinf(phase);
-    case WaveformType::Square:
-        return fmodf(phase, 2.0f * PI) < PI ? 1.0f : -1.0f;
-    case WaveformType::Triangle:
-        return 2.0f * fabsf(2.0f * (phase / (2.0f * PI) - floorf(phase / (2.0f * PI) + 0.5f))) - 1.0f;
-    case WaveformType::Sawtooth:
-        return 2.0f * (phase / (2.0f * PI) - floorf(phase / (2.0f * PI))) - 1.0f;
-    default:
-        return 0.0f; // Fallback for undefined types
+        return sin(phase);
+    }
+    else if (type == WaveformType::Square)
+    {
+        return fmod(phase, 2.0 * PI) < PI ? 1.0 : -1.0;
+    }
+    else if (type == WaveformType::Triangle)
+    {
+        return 2.0 * fabs(2.0 * (phase / (2.0 * PI) - floor(phase / (2.0 * PI) + 0.5))) - 1.0;
+    }
+    else if (type == WaveformType::Sawtooth)
+    {
+        return 2.0 * (phase / (2.0 * PI) - floor(phase / (2.0 * PI))) - 1.0;
+    }
+    else
+    {
+        return 0.0; // Fallback for undefined types
     }
 }
 
