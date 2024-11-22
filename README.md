@@ -7,8 +7,6 @@ FM Synthesis:
 
  - Implements basic **FM synthesis** to generate sounds by modulating one oscillator's frequency (carrier) using another oscillator (modulator).
 
- - **Dynamic Frequency Modulation**: Both carrier and modulator frequencies vary over time.
-
  - Audio data is generated and then written to a .wav file for playback or further processing.
 
  - Supports 16, 24 and 32 -bit PCM Output at variable sample rates.
