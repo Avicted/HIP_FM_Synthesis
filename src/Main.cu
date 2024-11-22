@@ -269,9 +269,10 @@ i32 main(i32 argc, char **argv)
     const std::string midiFile = "Sonic the Hedgehog 2 - Chemical Plant Zone.mid";
     std::vector<MidiNote> notes = ParseMidi(midiFile, sampleRate);
 
-    // Pri32 the extracted notes
+    // Print the extracted notes
     for (const auto &note : notes)
     {
+        // @Note(Victor): Remove this to print all notes
         continue;
 
         std::cout << "Note: " << note.note
