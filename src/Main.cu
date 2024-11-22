@@ -17,19 +17,19 @@
 
 // Define parameters for the synthesis
 const int sampleRate = 48000;         // Default: 48kHz. Allow user input for other rates like 44100, 96000, etc.
-const int signalLengthInSeconds = 10; // 10 seconds of sound
+const int signalLengthInSeconds = 20; // 20 seconds of sound
 const unsigned long long signalLength = sampleRate * signalLengthInSeconds;
 
-const float initialCarrierFreq = 220.0f;   // note (220 Hz) for FM synthesis
-const float initialModulatorFreq = 110.0f; // Modulation frequency
-const float modulationIndex = 1.0f;        // Depth of modulation
-const float amplitude = 0.20f;             // Volume
+const float initialCarrierFreq = 440.0f;          // note (440 Hz) for FM synthesis
+const float initialModulatorFreq = 220.0f * 8.0f; // Modulation frequency
+const float modulationIndex = 0.5f;               // Depth of modulation
+const float amplitude = 0.20f;                    // Volume
 
 // ADSR (Attack, Decay, Sustain, Release) envelope parameters
-const float attackTime = 0.3f;   // Attack duration in seconds
-const float decayTime = 0.3f;    // Decay duration in seconds
-const float sustainLevel = 0.7f; // Sustain amplitude (0.0 to 1.0)
-const float releaseTime = 1.0f;  // Release duration in seconds
+const float attackTime = 0.0050f; // Attack duration in seconds
+const float decayTime = 0.40f;    // Decay duration in seconds
+const float sustainLevel = 0.50f; // Sustain amplitude (0.0 to 1.0)
+const float releaseTime = 0.20f;  // Release duration in seconds
 const float noteDuration = signalLengthInSeconds;
 
 enum class WaveformType
@@ -60,10 +60,58 @@ struct FMSynthParams
     WaveformType waveformType;
 };
 
+struct MidiNote
+{
+    int note;        // MIDI note number
+    float startTime; // Note start time in seconds
+    float duration;  // Note duration in seconds
+    int velocity;    // Note velocity
+};
+
 // Create host buffer for the output signal
 std::vector<float> outputSignal;
 
 // -----------------------------------------------------------------------
+
+// Function to load and parse MIDI notes
+static std::vector<MidiNote>
+ParseMidi(const std::string &filename, int sampleRate)
+{
+    smf::MidiFile midiFile;
+    if (!midiFile.read(filename))
+    {
+        throw std::runtime_error("Failed to load MIDI file: " + filename);
+    }
+
+    midiFile.doTimeAnalysis();
+    midiFile.linkNotePairs();
+
+    std::vector<MidiNote> notes;
+    for (int track = 0; track < midiFile.getTrackCount(); ++track)
+    {
+        for (int event = 0; event < midiFile[track].size(); ++event)
+        {
+            auto &midiEvent = midiFile[track][event];
+            if (!midiEvent.isNoteOn())
+            {
+                continue;
+            }
+
+            int note = midiEvent.getKeyNumber();
+            int velocity = midiEvent.getVelocity();
+            double startTime = midiEvent.seconds;
+
+            if (midiEvent.getLinkedEvent() != nullptr)
+            {
+                double endTime = midiEvent.getLinkedEvent()->seconds;
+                notes.push_back({note, static_cast<float>(startTime),
+                                 static_cast<float>(endTime - startTime), velocity});
+            }
+        }
+    }
+
+    return notes;
+}
 
 __global__ void
 HelloWorldKernel(void)
@@ -121,58 +169,68 @@ GenerateWaveform(WaveformType type, float phase)
 
 // FM Synthesis Kernel
 __global__ void
-FMSynthesisWithEnvelope(FMSynthParams params, float *outputSignal)
+FMSynthesis(FMSynthParams params, float *outputSignal, MidiNote *midiNotes, int numNotes)
 {
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
-    if (idx < params.signalLength)
+    if (idx >= params.signalLength)
+        return;
+
+    float time = (float)idx / params.sampleRate;
+    float signal = 0.0f;
+
+    for (int i = 0; i < numNotes; ++i)
     {
-        float time = (float)idx / params.sampleRate;
-        float phase = 2.0f * PI * params.carrierFreq * time;
+        const MidiNote &note = midiNotes[i];
+        if (time < note.startTime || time >= note.startTime + note.duration)
+            continue;
 
-        // Vary the frequencies over time (e.g., a slow glide for both carrier and modulator)
-        float carrierFreq = initialCarrierFreq + __sinf(time * 0.1f) * 1200.0f;     // Vary by 1.2kHz
-        float modulatorFreq = initialModulatorFreq + __sinf(time * 0.05f) * 600.0f; // Vary by 600Hz
+        float carrierFreq = 440.0f * powf(2.0f, (note.note - 69) / 12.0f);
+        float modulatorFreq = params.modulatorFreq; // Can vary per note if needed
+        float phase = 2.0f * PI * carrierFreq * time;
 
-        // Modulate the carrier frequency
         phase += params.modulationIndex * __sinf(2.0f * PI * modulatorFreq * time);
 
-        // Apply the envelope
         float envelope = ApplyEnvelope(
-            time,
+            time - note.startTime,
             params.attackTime,
             params.decayTime,
             params.sustainLevel,
             params.releaseTime,
-            params.noteDuration);
+            note.duration);
 
-        // Generate the waveform
-        float signal = params.amplitude * envelope * GenerateWaveform(params.waveformType, phase);
-
-        // Store the result
-        outputSignal[idx] = signal;
+        signal += note.velocity / 127.0f * params.amplitude * envelope *
+                  GenerateWaveform(params.waveformType, phase);
     }
+
+    outputSignal[idx] = signal;
 }
 
 static void
-RunFMSynthesis(float *outputSignal, FMSynthParams params)
+RunFMSynthesis(float *outputSignal, FMSynthParams params, MidiNote *notes, int numNotes)
 {
     printf("\tRunning FM Synthesis...\n");
 
     // Allocate device memory
     float *d_outputSignal;
+    MidiNote *d_notes;
     HIP_ERRCHK(hipMalloc(&d_outputSignal, params.signalLength * sizeof(float)));
+    HIP_ERRCHK(hipMalloc(&d_notes, numNotes * sizeof(MidiNote)));
+
+    // Copy notes to device memory
+    HIP_ERRCHK(hipMemcpy(d_notes, notes, numNotes * sizeof(MidiNote), hipMemcpyHostToDevice));
 
     // Launch the kernel
     dim3 blockDim(256);
     dim3 gridDim((params.signalLength + blockDim.x - 1) / blockDim.x);
 
-    FMSynthesisWithEnvelope<<<gridDim, blockDim>>>(params, d_outputSignal);
+    FMSynthesis<<<gridDim, blockDim>>>(params, d_outputSignal, d_notes, numNotes);
 
     HIP_ERRCHK(hipDeviceSynchronize());
 
     // Copy result back to host
     HIP_ERRCHK(hipMemcpy(outputSignal, d_outputSignal, params.signalLength * sizeof(float), hipMemcpyDeviceToHost));
     HIP_ERRCHK(hipFree(d_outputSignal));
+    HIP_ERRCHK(hipFree(d_notes));
 
     printf("\tFM Synthesis completed!\n");
 }
@@ -180,6 +238,19 @@ RunFMSynthesis(float *outputSignal, FMSynthParams params)
 int main(int argc, char **argv)
 {
     printf("\tHello from HIP!\n");
+
+    // Load MIDI file
+    const std::string midiFile = "Sonic the Hedgehog 2 - Chemical Plant Zone.mid";
+    std::vector<MidiNote> notes = ParseMidi(midiFile, sampleRate);
+
+    // Print the extracted notes
+    for (const auto &note : notes)
+    {
+        std::cout << "Note: " << note.note
+                  << ", Start Time: " << note.startTime
+                  << ", Duration: " << note.duration
+                  << ", Velocity: " << note.velocity << std::endl;
+    }
 
     GetCudaDevices();
 
@@ -213,7 +284,7 @@ int main(int argc, char **argv)
     params.waveformType = WaveformType::Triangle;
 
     // Setup the memory and call the kernel
-    RunFMSynthesis(outputSignal.data(), params);
+    RunFMSynthesis(outputSignal.data(), params, notes.data(), notes.size());
 
     HIP_ERRCHK(hipEventRecord(stopEvent, 0));
     HIP_ERRCHK(hipEventSynchronize(stopEvent));
