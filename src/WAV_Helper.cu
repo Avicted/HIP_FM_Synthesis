@@ -1,14 +1,14 @@
 #include "Includes.hpp"
 
 // 16-bit PCM Output
-static i16
+internal i16
 ConvertTo16Bit(double sample)
 {
     return (i16)((double)sample * 32767.0f);
 }
 
 // 24-bit PCM Output
-static void
+internal void
 Write24BitSample(FILE *file, double sample)
 {
     i32 intSample = (i32)((double)sample * 8388607.0f); // Scale to 24-bit
@@ -20,14 +20,14 @@ Write24BitSample(FILE *file, double sample)
 }
 
 // 32-bit double Output
-static void
+internal void
 Write32BitDoubleSample(FILE *file, double sample)
 {
     double floatSample = (double)sample; // Convert double to f32 for 32-bit f32 output
     fwrite(&floatSample, sizeof(double), 1, file);
 }
 
-static void
+internal void
 WriteWAVHeader(FILE *file, int sampleRate, int numChannels, int bitDepth, int numSamples)
 {
     int byteRate = sampleRate * numChannels * (bitDepth / 8);
@@ -58,7 +58,7 @@ WriteWAVHeader(FILE *file, int sampleRate, int numChannels, int bitDepth, int nu
     fwrite(&dataChunkSize, 4, 1, file);
 }
 
-static void
+internal void
 WriteWAVFile(
     const char *filename,
     double *samples,

@@ -75,7 +75,7 @@ std::vector<double> outputSignal;
 
 // -----------------------------------------------------------------------
 
-static std::vector<MidiNote>
+internal std::vector<MidiNote>
 ParseMidi(const std::string &filename, int sampleRate)
 {
     smf::MidiFile midiFile;
@@ -223,7 +223,7 @@ FMSynthesis(FMSynthParams params, f64 *outputSignal, MidiNote *midiNotes, int nu
     }
 }
 
-static void
+internal void
 RunFMSynthesis(f64 *outputSignal, FMSynthParams params, MidiNote *notes, int numNotes)
 {
     printf("\tRunning FM Synthesis...\n");

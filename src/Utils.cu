@@ -2,7 +2,7 @@
 
 // HIP error handling macro
 #define HIP_ERRCHK(err) (hip_errchk(err, __FILE__, __LINE__))
-static inline void hip_errchk(hipError_t err, const char *file, int line)
+internal inline void hip_errchk(hipError_t err, const char *file, int line)
 {
     if (err != hipSuccess)
     {
@@ -11,7 +11,7 @@ static inline void hip_errchk(hipError_t err, const char *file, int line)
     }
 }
 
-static void
+internal void
 GetCudaDevices(void)
 {
     int deviceCount = 0;
