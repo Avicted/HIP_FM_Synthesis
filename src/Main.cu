@@ -73,7 +73,7 @@ struct MidiNote
 // Create host buffer for the output signal
 std::vector<double> outputSignal;
 
-u64 MemoryUsage = 0;
+u64 MemoryUsageInBytes = 0;
 
 // -----------------------------------------------------------------------
 
@@ -288,9 +288,9 @@ i32 main(i32 argc, char **argv)
 
     // Allocate host memory
     outputSignal.resize(signalLength);
-    MemoryUsage += outputSignal.size() * sizeof(double);
+    MemoryUsageInBytes += outputSignal.size() * sizeof(double);
 
-    u64 MemoryUsageInMegabytes = MemoryUsage / (1024 * 1024);
+    u64 MemoryUsageInMegabytes = MemoryUsageInBytes / (1024 * 1024);
     printf("\tMemory Usage: %lu megabytes\n", MemoryUsageInMegabytes);
 
     hipEvent_t startEvent, stopEvent;
@@ -332,14 +332,14 @@ i32 main(i32 argc, char **argv)
     WriteWAVFile(fileName, outputSignal.data(), params.signalLength, params.sampleRate, bitDepth);
 
     // Free host memory
-    MemoryUsage -= outputSignal.size() * sizeof(double);
+    MemoryUsageInBytes -= outputSignal.size() * sizeof(double);
 
-    MemoryUsageInMegabytes = MemoryUsage / (1024 * 1024);
+    MemoryUsageInMegabytes = MemoryUsageInBytes / (1024 * 1024);
     printf("\tMemory Usage: %lu megabytes\n", MemoryUsageInMegabytes);
 
     outputSignal.clear();
 
-    Assert(MemoryUsage == 0);
+    Assert(MemoryUsageInBytes == 0);
 
     return 0;
 }
