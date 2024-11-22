@@ -7,7 +7,7 @@ MIDIFILE_LIB = submodules/midifile/lib/libmidifile.a
 # Flags
 HIPFLAGS = -O2 -ffp-contract=off
 
-INCLUDES = -I/usr/include -I/opt/rocm/include -Isubmodules/midifile/include
+INCLUDES = -Iinclude/ -I/usr/include -I/opt/rocm/include -Isubmodules/midifile/include
 
 LIBS = -Lsubmodules/midifile/lib -l:libmidifile.a
 
@@ -18,13 +18,13 @@ SRC = src/Main.cu
 EXE = build/Main
 
 # Build everything
-all: midiFile $(EXE) 
+all: midiFile $(EXE)
 
 # Build the main executable
 $(EXE): $(SRC)
 	$(shell rm -f *.wav)
 	$(shell mkdir -p build)
-	$(HIPCC) $(HIPFLAGS) $(INCLUDES) -o $(EXE) $(SRC) $(LIBS)
+	$(HIPCC) $(HIPFLAGS) $(INCLUDES) $(INC) -o $(EXE) $(SRC) $(LIBS)
 
 # Build the MidiFile library
 midiFile:

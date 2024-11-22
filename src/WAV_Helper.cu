@@ -1,19 +1,21 @@
+#include "Includes.hpp"
+
 // 16-bit PCM Output
-static int16_t
+static i16
 ConvertTo16Bit(double sample)
 {
-    return (int16_t)((double)sample * 32767.0f);
+    return (i16)((double)sample * 32767.0f);
 }
 
 // 24-bit PCM Output
 static void
 Write24BitSample(FILE *file, double sample)
 {
-    int32_t intSample = (int32_t)((double)sample * 8388607.0f); // Scale to 24-bit
-    uint8_t bytes[3] = {
-        (uint8_t)(intSample & 0xFF),
-        (uint8_t)((intSample >> 8) & 0xFF),
-        (uint8_t)((intSample >> 16) & 0xFF)};
+    i32 intSample = (i32)((double)sample * 8388607.0f); // Scale to 24-bit
+    u8 bytes[3] = {
+        (u8)(intSample & 0xFF),
+        (u8)((intSample >> 8) & 0xFF),
+        (u8)((intSample >> 16) & 0xFF)};
     fwrite(bytes, 1, 3, file);
 }
 
@@ -21,7 +23,7 @@ Write24BitSample(FILE *file, double sample)
 static void
 Write32BitDoubleSample(FILE *file, double sample)
 {
-    double floatSample = (double)sample; // Convert double to float for 32-bit float output
+    double floatSample = (double)sample; // Convert double to f32 for 32-bit f32 output
     fwrite(&floatSample, sizeof(double), 1, file);
 }
 
@@ -80,8 +82,8 @@ WriteWAVFile(
 
         if (bitDepth == 16)
         {
-            int16_t pcmSample = ConvertTo16Bit(sample);
-            fwrite(&pcmSample, sizeof(int16_t), 1, file);
+            i16 pcmSample = ConvertTo16Bit(sample);
+            fwrite(&pcmSample, sizeof(i16), 1, file);
         }
         else if (bitDepth == 24)
         {

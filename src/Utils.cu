@@ -1,3 +1,5 @@
+#include "Includes.hpp"
+
 // HIP error handling macro
 #define HIP_ERRCHK(err) (hip_errchk(err, __FILE__, __LINE__))
 static inline void hip_errchk(hipError_t err, const char *file, int line)

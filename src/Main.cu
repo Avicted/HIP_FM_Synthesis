@@ -11,6 +11,7 @@
 #include "MidiFile.h"
 
 // Our code
+#include "Includes.hpp"
 #include "Utils.cu"
 #include "WAV_Helper.cu"
 
@@ -21,17 +22,17 @@ const int sampleRate = 48000;   // Default: 48kHz. Allow user input for other ra
 int signalLengthInSeconds = 20; // 20 seconds of sound
 unsigned long long signalLength = sampleRate * signalLengthInSeconds;
 
-const double initialCarrierFreq = 440.0f;   // note (440 Hz) for FM synthesis
-const double initialModulatorFreq = 880.0f; // Modulation frequency
-const double modulationIndex = 0.1f;        // Depth of modulation
-const double amplitude = 0.20f;             // Volume
+const f64 initialCarrierFreq = 440.0f;   // note (440 Hz) for FM synthesis
+const f64 initialModulatorFreq = 880.0f; // Modulation frequency
+const f64 modulationIndex = 0.1f;        // Depth of modulation
+const f64 amplitude = 0.20f;             // Volume
 
 // ADSR (Attack, Decay, Sustain, Release) envelope parameters
-const double attackTime = 0.0050f; // Attack duration in seconds
-const double decayTime = 0.40f;    // Decay duration in seconds
-const double sustainLevel = 0.50f; // Sustain amplitude (0.0 to 1.0)
-const double releaseTime = 0.20f;  // Release duration in seconds
-const double noteDuration = 0.0f;  // = signalLengthInSeconds;
+const f64 attackTime = 0.0050f; // Attack duration in seconds
+const f64 decayTime = 0.40f;    // Decay duration in seconds
+const f64 sustainLevel = 0.50f; // Sustain amplitude (0.0 to 1.0)
+const f64 releaseTime = 0.20f;  // Release duration in seconds
+const f64 noteDuration = 0.0f;  // = signalLengthInSeconds;
 
 enum class WaveformType
 {
@@ -47,26 +48,26 @@ struct FMSynthParams
     int signalLengthInSeconds;
     unsigned long long signalLength;
 
-    double carrierFreq;
-    double modulatorFreq;
-    double modulationIndex;
-    double amplitude;
+    f64 carrierFreq;
+    f64 modulatorFreq;
+    f64 modulationIndex;
+    f64 amplitude;
 
-    double attackTime;
-    double decayTime;
-    double sustainLevel;
-    double releaseTime;
-    double noteDuration;
+    f64 attackTime;
+    f64 decayTime;
+    f64 sustainLevel;
+    f64 releaseTime;
+    f64 noteDuration;
 
     WaveformType waveformType;
 };
 
 struct MidiNote
 {
-    int note;         // MIDI note number
-    double startTime; // Note start time in seconds
-    double duration;  // Note duration in seconds
-    int velocity;     // Note velocity
+    int note;      // MIDI note number
+    f64 startTime; // Note start time in seconds
+    f64 duration;  // Note duration in seconds
+    int velocity;  // Note velocity
 };
 
 // Create host buffer for the output signal
@@ -74,7 +75,6 @@ std::vector<double> outputSignal;
 
 // -----------------------------------------------------------------------
 
-// Function to load and parse MIDI notes
 static std::vector<MidiNote>
 ParseMidi(const std::string &filename, int sampleRate)
 {
@@ -100,11 +100,11 @@ ParseMidi(const std::string &filename, int sampleRate)
 
             int note = midiEvent.getKeyNumber();
             int velocity = midiEvent.getVelocity();
-            double startTime = midiEvent.seconds;
+            f64 startTime = midiEvent.seconds;
 
             if (midiEvent.getLinkedEvent() != nullptr)
             {
-                double endTime = midiEvent.getLinkedEvent()->seconds;
+                f64 endTime = midiEvent.getLinkedEvent()->seconds;
                 notes.push_back({note, static_cast<double>(startTime),
                                  static_cast<double>(endTime - startTime), velocity});
             }
@@ -126,14 +126,14 @@ HelloWorldKernel(void)
 
 __device__ double
 ApplyEnvelope(
-    double time,
-    double attackTime,
-    double decayTime,
-    double sustainLevel,
-    double releaseTime,
-    double noteDuration)
+    f64 time,
+    f64 attackTime,
+    f64 decayTime,
+    f64 sustainLevel,
+    f64 releaseTime,
+    f64 noteDuration)
 {
-    double envelope = 0.0f;
+    f64 envelope = 0.0f;
     if (time < attackTime)
     {
         envelope = time / attackTime;
@@ -159,7 +159,7 @@ ApplyEnvelope(
 }
 
 __device__ double
-GenerateWaveform(WaveformType type, double phase)
+GenerateWaveform(WaveformType type, f64 phase)
 {
     switch (type)
     {
@@ -178,7 +178,7 @@ GenerateWaveform(WaveformType type, double phase)
 
 // FM Synthesis Kernel
 __global__ void
-FMSynthesis(FMSynthParams params, double *outputSignal, MidiNote *midiNotes, int numNotes)
+FMSynthesis(FMSynthParams params, f64 *outputSignal, MidiNote *midiNotes, int numNotes)
 {
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
     if (idx >= params.signalLength)
@@ -186,8 +186,8 @@ FMSynthesis(FMSynthParams params, double *outputSignal, MidiNote *midiNotes, int
         return;
     }
 
-    double time = (double)idx / params.sampleRate;
-    double signal = 0.0f;
+    f64 time = (double)idx / params.sampleRate;
+    f64 signal = 0.0f;
 
     for (int i = 0; i < numNotes; ++i)
     {
@@ -197,12 +197,12 @@ FMSynthesis(FMSynthParams params, double *outputSignal, MidiNote *midiNotes, int
             continue;
         }
 
-        double carrierFreq = 440.0f * powf(2.0f, (note.note - 69) / 12.0f);
-        double modulatorFreq = carrierFreq * 2.0; // params.modulatorFreq; // Can vary per note if needed
-        double phase = fmodf(2.0f * PI * carrierFreq * time, 2.0f * PI);
+        f64 carrierFreq = 440.0f * powf(2.0f, (note.note - 69) / 12.0f);
+        f64 modulatorFreq = carrierFreq * 2.0; // params.modulatorFreq; // Can vary per note if needed
+        f64 phase = fmodf(2.0f * PI * carrierFreq * time, 2.0f * PI);
         phase += params.modulationIndex * __sinf(2.0f * PI * modulatorFreq * time);
 
-        double envelope = ApplyEnvelope(
+        f64 envelope = ApplyEnvelope(
             time - note.startTime,
             params.attackTime,
             params.decayTime,
@@ -214,23 +214,22 @@ FMSynthesis(FMSynthParams params, double *outputSignal, MidiNote *midiNotes, int
         signal += note.velocity / 127.0 * params.amplitude * envelope *
                   GenerateWaveform(params.waveformType, phase);
 
-        double waveform = GenerateWaveform(params.waveformType, phase);
+        f64 waveform = GenerateWaveform(params.waveformType, phase);
 
         // Apply envelope
         signal *= envelope;
 
-        // Output signal
         outputSignal[idx] = signal;
     }
 }
 
 static void
-RunFMSynthesis(double *outputSignal, FMSynthParams params, MidiNote *notes, int numNotes)
+RunFMSynthesis(f64 *outputSignal, FMSynthParams params, MidiNote *notes, int numNotes)
 {
     printf("\tRunning FM Synthesis...\n");
 
     // Allocate device memory
-    double *d_outputSignal;
+    f64 *d_outputSignal;
     MidiNote *d_notes;
     HIP_ERRCHK(hipMalloc(&d_outputSignal, params.signalLength * sizeof(double)));
     HIP_ERRCHK(hipMalloc(&d_notes, numNotes * sizeof(MidiNote)));
@@ -308,7 +307,7 @@ int main(int argc, char **argv)
     HIP_ERRCHK(hipEventRecord(stopEvent, 0));
     HIP_ERRCHK(hipEventSynchronize(stopEvent));
 
-    float milliseconds = 0.0f;
+    f32 milliseconds = 0.0f;
     HIP_ERRCHK(hipEventElapsedTime(&milliseconds, startEvent, stopEvent));
     printf("\tKernel execution time: %.3f ms\n", milliseconds);
 
