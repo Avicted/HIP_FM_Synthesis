@@ -6,6 +6,9 @@
 // HIP header
 #include <hip/hip_runtime.h>
 
+// Midifile submodule
+#include "MidiFile.h"
+
 // Our code
 #include "Utils.cu"
 #include "WAV_Helper.cu"

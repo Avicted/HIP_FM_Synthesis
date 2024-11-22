@@ -21,7 +21,10 @@ FM Synthesis:
 
 ## Build and run
 ```bash
-make
+git clone --recurse-submodules git@github.com:Avicted/HIP_FM_Synthesis.git
+
+make all
+make run
 ```
 
 ## Program Output
