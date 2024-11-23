@@ -71,7 +71,7 @@ struct MidiNote
 };
 
 // Create host buffer for the output signal
-std::vector<double> outputSignal;
+std::vector<f64> outputSignal;
 
 u64 MemoryUsageInBytes = 0;
 
@@ -107,8 +107,8 @@ ParseMidi(const std::string &filename, i32 sampleRate)
             if (midiEvent.getLinkedEvent() != nullptr)
             {
                 f64 endTime = midiEvent.getLinkedEvent()->seconds;
-                notes.push_back({note, static_cast<double>(startTime),
-                                 static_cast<double>(endTime - startTime), velocity});
+                notes.push_back({note, static_cast<f64>(startTime),
+                                 static_cast<f64>(endTime - startTime), velocity});
             }
         }
     }
@@ -125,7 +125,7 @@ HelloWorldKernel(void)
     printf("\tHello from HIP Kernel!\n");
 }
 
-__device__ double
+__device__ f64
 ApplyEnvelope(
     f64 time,
     f64 attackTime,
@@ -159,7 +159,7 @@ ApplyEnvelope(
     return envelope;
 }
 
-__device__ double
+__device__ f64
 GenerateWaveform(WaveformType type, f64 phase)
 {
     if (type == WaveformType::Sine)
