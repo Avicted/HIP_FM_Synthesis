@@ -249,6 +249,9 @@ RunFMSynthesis(f64 *outputSignal, FMSynthParams params, MidiNote *notes, i32 num
     dim3 blockDim(256);
     dim3 gridDim((params.signalLength + blockDim.x - 1) / blockDim.x);
 
+    printf("\n\tLaunching kernel with %d blocks and %d threads per block\n", gridDim.x, blockDim.x);
+    printf("\tTotal number of threads: %d\n\n", gridDim.x * blockDim.x);
+
     FMSynthesis<<<gridDim, blockDim>>>(params, d_outputSignal, d_notes, numNotes);
 
     HIP_ERRCHK(hipDeviceSynchronize());

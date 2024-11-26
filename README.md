@@ -54,9 +54,13 @@ The following command generates a .wav file with a 1-second sound clip using the
         Hello from HIP Kernel!
         Memory Usage: 40 megabytes
         Running FM Synthesis...
+
+        Launching kernel with 20625 blocks and 256 threads per block
+        Total number of threads: 5280000
+
         FM Synthesis completed!
-        Kernel execution time: 13.146 ms
-        WAV file written: output_24bit_48kHz.wav
+        Kernel execution time: 13.239 ms
+        WAV file written: output_32bit_48kHz.wav
         Memory Usage: 0 megabytes
 ```
 
