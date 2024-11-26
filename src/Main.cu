@@ -18,9 +18,9 @@
 // -----------------------------------------------------------------------
 
 // Define parameters for the synthesis
-const i32 sampleRate = 48000;  // Default: 48kHz. Allow user input for other rates like 44100, 96000, etc.
-i32 signalLengthInSeconds = 0; // Dynamically set based on MIDI file duration
-unsigned long long signalLength = sampleRate * signalLengthInSeconds;
+const i32 sampleRateHz = 48000; // Default: 48kHz. Allow user input for other rates like 44100, 96000, etc.
+i32 signalLengthInSeconds = 0;  // Dynamically set based on MIDI file duration
+unsigned long long signalLength = sampleRateHz * signalLengthInSeconds;
 
 const f64 initialCarrierFreq = 440.0f;   // note (440 Hz) for FM synthesis
 const f64 initialModulatorFreq = 880.0f; // Modulation frequency
@@ -44,7 +44,7 @@ enum class WaveformType
 
 struct FMSynthParams
 {
-    i32 sampleRate;
+    i32 sampleRateHz;
     i32 signalLengthInSeconds;
     unsigned long long signalLength;
 
@@ -78,7 +78,7 @@ u64 MemoryUsageInBytes = 0;
 // -----------------------------------------------------------------------
 
 internal std::vector<MidiNote>
-ParseMidi(const std::string &filename, i32 sampleRate)
+ParseMidi(const std::string &filename, i32 sampleRateHz)
 {
     smf::MidiFile midiFile;
     if (!midiFile.read(filename))
@@ -114,7 +114,7 @@ ParseMidi(const std::string &filename, i32 sampleRate)
     }
 
     signalLengthInSeconds = midiFile.getFileDurationInSeconds();
-    signalLength = sampleRate * signalLengthInSeconds;
+    signalLength = sampleRateHz * signalLengthInSeconds;
 
     return notes;
 }
@@ -194,7 +194,7 @@ FMSynthesis(FMSynthParams params, f64 *outputSignal, MidiNote *midiNotes, i32 nu
         return;
     }
 
-    f64 time = (f64)idx / params.sampleRate;
+    f64 time = (f64)idx / params.sampleRateHz;
     f64 signal = 0.0f;
 
     for (i32 i = 0; i < numNotes; ++i)
@@ -271,7 +271,7 @@ i32 main(i32 argc, char **argv)
 
     // Load MIDI file
     const std::string midiFile = "Sonic the Hedgehog 2 - Chemical Plant Zone.mid";
-    std::vector<MidiNote> notes = ParseMidi(midiFile, sampleRate);
+    std::vector<MidiNote> notes = ParseMidi(midiFile, sampleRateHz);
 
     // Print the extracted notes
     for (const auto &note : notes)
@@ -304,7 +304,7 @@ i32 main(i32 argc, char **argv)
     HIP_ERRCHK(hipEventRecord(startEvent, 0));
 
     FMSynthParams params;
-    params.sampleRate = sampleRate;
+    params.sampleRateHz = sampleRateHz;
     params.signalLengthInSeconds = signalLengthInSeconds;
     params.signalLength = signalLength;
 
@@ -333,8 +333,8 @@ i32 main(i32 argc, char **argv)
     // 16, 24, 32-bit WAV output
     i32 bitDepth = 32;
     char fileName[50];
-    sprintf(fileName, "output_%dbit_%dkHz.wav", bitDepth, params.sampleRate / 1000);
-    WriteWAVFile(fileName, outputSignal.data(), params.signalLength, params.sampleRate, bitDepth);
+    sprintf(fileName, "output_%dbit_%dkHz.wav", bitDepth, params.sampleRateHz / 1000);
+    WriteWAVFile(fileName, outputSignal.data(), params.signalLength, params.sampleRateHz, bitDepth);
 
     // Free host memory
     MemoryUsageInBytes -= outputSignal.size() * sizeof(f64);

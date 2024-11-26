@@ -43,12 +43,12 @@ Write32BitSample(FILE *file, f64 sample)
 }
 
 internal void
-WriteWAVHeader(FILE *file, i32 sampleRate, i32 numChannels, i32 bitDepth, i32 numSamples)
+WriteWAVHeader(FILE *file, i32 sampleRateHz, i32 numChannels, i32 bitDepth, i32 numSamples)
 {
-    i32 byteRate = sampleRate * numChannels * (bitDepth / 8); // Sample rate * channels * bytes per sample
-    i32 blockAlign = numChannels * (bitDepth / 8);            // Channels * bytes per sample
-    i32 dataChunkSize = numSamples * blockAlign;              // Num samples * bytes per sample
-    i32 fileSize = 36 + dataChunkSize;                        // File size = header size (36) + data chunk size
+    i32 byteRate = sampleRateHz * numChannels * (bitDepth / 8); // Sample rate * channels * bytes per sample
+    i32 blockAlign = numChannels * (bitDepth / 8);              // Channels * bytes per sample
+    i32 dataChunkSize = numSamples * blockAlign;                // Num samples * bytes per sample
+    i32 fileSize = 36 + dataChunkSize;                          // File size = header size (36) + data chunk size
 
     // Write RIFF header
     fwrite("RIFF", 1, 4, file);    // 'RIFF' chunk descriptor
@@ -63,8 +63,8 @@ WriteWAVHeader(FILE *file, i32 sampleRate, i32 numChannels, i32 bitDepth, i32 nu
     short audioFormat = (bitDepth == 32) ? WAVE_FORMAT_IEEE_FLOAT : WAVE_FORMAT_PCM; // Audio format type: 1 = PCM, 3 = IEEE float
     fwrite(&audioFormat, 2, 1, file);                                                // Audio format: 1 (PCM) or 3 (IEEE float)
     fwrite(&numChannels, 2, 1, file);                                                // Number of channels
-    fwrite(&sampleRate, 4, 1, file);                                                 // Sample rate (e.g., 44100, 48000)
-    fwrite(&byteRate, 4, 1, file);                                                   // Byte rate (sampleRate * numChannels * bytesPerSample)
+    fwrite(&sampleRateHz, 4, 1, file);                                               // Sample rate (e.g., 44100, 48000)
+    fwrite(&byteRate, 4, 1, file);                                                   // Byte rate (sampleRateHz * numChannels * bytesPerSample)
     fwrite(&blockAlign, 2, 1, file);                                                 // Block align (numChannels * bytesPerSample)
     fwrite(&bitDepth, 2, 1, file);                                                   // Bits per sample (e.g., 16, 24, 32)
 
@@ -78,7 +78,7 @@ WriteWAVFile(
     const char *filename,
     f64 *samples,
     unsigned long long numSamples,
-    i32 sampleRate,
+    i32 sampleRateHz,
     i32 bitDepth)
 {
     FILE *file = fopen(filename, "wb");
@@ -89,7 +89,7 @@ WriteWAVFile(
     }
 
     i32 numChannels = 1; // Mono
-    WriteWAVHeader(file, sampleRate, numChannels, bitDepth, numSamples);
+    WriteWAVHeader(file, sampleRateHz, numChannels, bitDepth, numSamples);
 
     for (i32 i = 0; i < numSamples; i++)
     {
