@@ -1,4 +1,10 @@
 #include "Includes.hpp"
+#include <algorithm>
+#include <cstdio>
+#include <cstdint>
+
+#define WAVE_FORMAT_PCM 1
+#define WAVE_FORMAT_IEEE_FLOAT 3
 
 // 16-bit PCM Output
 internal i16
@@ -19,43 +25,50 @@ Write24BitSample(FILE *file, f64 sample)
     fwrite(bytes, 1, 3, file);
 }
 
-// 32-bit f64 Output
-internal void
-Write32Bitf64Sample(FILE *file, f64 sample)
+internal f64
+NormalizeSample(f64 sample)
 {
-    f64 floatSample = (f64)sample; // Convert f64 to f32 for 32-bit f32 output
-    fwrite(&floatSample, sizeof(f64), 1, file);
+    // Ensure the sample stays within the -1.0 to 1.0 range
+    return std::min(std::max(sample, -1.0), 1.0);
+}
+
+// 32-bit PCM Output
+internal void
+Write32BitSample(FILE *file, f64 sample)
+{
+    f32 floatSample = (f32)NormalizeSample(sample);
+    fwrite(&floatSample, sizeof(f32), 1, file);
 }
 
 internal void
 WriteWAVHeader(FILE *file, i32 sampleRate, i32 numChannels, i32 bitDepth, i32 numSamples)
 {
-    i32 byteRate = sampleRate * numChannels * (bitDepth / 8);
-    i32 blockAlign = numChannels * (bitDepth / 8);
-    i32 dataChunkSize = numSamples * blockAlign;
-    i32 fileSize = 36 + dataChunkSize;
+    i32 byteRate = sampleRate * numChannels * (bitDepth / 8); // Sample rate * channels * bytes per sample
+    i32 blockAlign = numChannels * (bitDepth / 8);            // Channels * bytes per sample
+    i32 dataChunkSize = numSamples * blockAlign;              // Num samples * bytes per sample
+    i32 fileSize = 36 + dataChunkSize;                        // File size = header size (36) + data chunk size
 
     // Write RIFF header
-    fwrite("RIFF", 1, 4, file);
-    fwrite(&fileSize, 4, 1, file);
-    fwrite("WAVE", 1, 4, file);
+    fwrite("RIFF", 1, 4, file);    // 'RIFF' chunk descriptor
+    fwrite(&fileSize, 4, 1, file); // File size - 8 bytes (total file size minus the 'RIFF' and size fields)
+    fwrite("WAVE", 1, 4, file);    // 'WAVE' format
 
-    // Write fmt subchunk
-    fwrite("fmt ", 1, 4, file);
-    i32 subchunk1Size = 16; // PCM header size
-    fwrite(&subchunk1Size, 4, 1, file);
+    // Write fmt subchunk header
+    i32 subchunk1Size = 16;             // PCM header size is always 16 for basic PCM/float formats
+    fwrite("fmt ", 1, 4, file);         // 'fmt ' subchunk identifier
+    fwrite(&subchunk1Size, 4, 1, file); // Subchunk1 size (16 for PCM/float formats)
 
-    short audioFormat = (bitDepth == 32) ? 3 : 1; // 3 = IEEE f64, 1 = PCM
-    fwrite(&audioFormat, 2, 1, file);
-    fwrite(&numChannels, 2, 1, file);
-    fwrite(&sampleRate, 4, 1, file);
-    fwrite(&byteRate, 4, 1, file);
-    fwrite(&blockAlign, 2, 1, file);
-    fwrite(&bitDepth, 2, 1, file);
+    short audioFormat = (bitDepth == 32) ? WAVE_FORMAT_IEEE_FLOAT : WAVE_FORMAT_PCM; // Audio format type: 1 = PCM, 3 = IEEE float
+    fwrite(&audioFormat, 2, 1, file);                                                // Audio format: 1 (PCM) or 3 (IEEE float)
+    fwrite(&numChannels, 2, 1, file);                                                // Number of channels
+    fwrite(&sampleRate, 4, 1, file);                                                 // Sample rate (e.g., 44100, 48000)
+    fwrite(&byteRate, 4, 1, file);                                                   // Byte rate (sampleRate * numChannels * bytesPerSample)
+    fwrite(&blockAlign, 2, 1, file);                                                 // Block align (numChannels * bytesPerSample)
+    fwrite(&bitDepth, 2, 1, file);                                                   // Bits per sample (e.g., 16, 24, 32)
 
     // Write data subchunk header
-    fwrite("data", 1, 4, file);
-    fwrite(&dataChunkSize, 4, 1, file);
+    fwrite("data", 1, 4, file);         // 'data' subchunk identifier
+    fwrite(&dataChunkSize, 4, 1, file); // Data chunk size (number of samples * bytes per sample)
 }
 
 internal void
@@ -91,7 +104,7 @@ WriteWAVFile(
         }
         else if (bitDepth == 32)
         {
-            Write32Bitf64Sample(file, sample);
+            Write32BitSample(file, sample);
         }
     }
 

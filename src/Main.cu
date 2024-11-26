@@ -327,7 +327,7 @@ i32 main(i32 argc, char **argv)
     printf("\tKernel execution time: %.3f ms\n", milliseconds);
 
     // 16, 24, 32-bit WAV output
-    i32 bitDepth = 24;
+    i32 bitDepth = 32;
     char fileName[50];
     sprintf(fileName, "output_%dbit_%dkHz.wav", bitDepth, params.sampleRate / 1000);
     WriteWAVFile(fileName, outputSignal.data(), params.signalLength, params.sampleRate, bitDepth);
