@@ -205,7 +205,8 @@ FMSynthesis(FMSynthParams params, f64 *outputSignal, MidiNote *midiNotes, i32 nu
             continue;
         }
 
-        f64 carrierFreq = 440.0f * powf(2.0f, (note.note - 69) / 12.0f);
+        const i32 midiNoteA4 = 69;
+        f64 carrierFreq = 440.0f * powf(2.0f, (note.note - midiNoteA4) / 12.0f);
         f64 modulatorFreq = carrierFreq * 2.0; // params.modulatorFreq; // Can vary per note if needed
         f64 phase = fmodf(2.0f * PI * carrierFreq * time, 2.0f * PI);
         phase += params.modulationIndex * __sinf(2.0f * PI * modulatorFreq * time);
@@ -294,7 +295,7 @@ i32 main(i32 argc, char **argv)
     outputSignal.resize(signalLength);
     MemoryUsageInBytes += outputSignal.size() * sizeof(f64);
 
-    u64 MemoryUsageInMegabytes = MemoryUsageInBytes / (1024 * 1024);
+    u64 MemoryUsageInMegabytes = MemoryUsageInBytes / Megabytes(1);
     printf("\tMemory Usage: %lu megabytes\n", MemoryUsageInMegabytes);
 
     hipEvent_t startEvent, stopEvent;
@@ -338,7 +339,7 @@ i32 main(i32 argc, char **argv)
     // Free host memory
     MemoryUsageInBytes -= outputSignal.size() * sizeof(f64);
 
-    MemoryUsageInMegabytes = MemoryUsageInBytes / (1024 * 1024);
+    MemoryUsageInMegabytes = MemoryUsageInBytes / Megabytes(1);
     printf("\tMemory Usage: %lu megabytes\n", MemoryUsageInMegabytes);
 
     outputSignal.clear();
