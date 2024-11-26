@@ -10,14 +10,16 @@
 internal i16
 ConvertTo16Bit(f64 sample)
 {
-    return (i16)((f64)sample * 32767.0f);
+    const f64 SCALE_16BIT = 32767.0f;        // Half of the 16-bit range
+    return (i16)((f64)sample * SCALE_16BIT); // Scale to 16-bit
 }
 
 // 24-bit PCM Output
 internal void
 Write24BitSample(FILE *file, f64 sample)
 {
-    i32 intSample = (i32)((f64)sample * 8388607.0f); // Scale to 24-bit
+    const f64 SCALE_24BIT = 8388607.0f;          // Half of the 24-bit range
+    i32 intSample = (i32)(sample * SCALE_24BIT); // Scale to 24-bit
     u8 bytes[3] = {
         (u8)(intSample & 0xFF),
         (u8)((intSample >> 8) & 0xFF),
