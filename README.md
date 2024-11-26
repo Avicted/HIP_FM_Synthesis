@@ -32,25 +32,26 @@ The following command generates a .wav file with a 1-second sound clip using the
 ```bash
 ./build/Main
         Hello from HIP!
-        CUDA Device Count: 1
+        HIP Device Count: 1
         Device 0: AMD Radeon RX 6900 XT
-                Compute Capability: 10.3
-                Total Global Memory: 17163091968
-                Shared Memory per Block: 65536
-                Registers per Block: 65536
-                Warp Size: 32
-                Max Threads per Block: 1024
-                Max Threads Dimension: (1024, 1024, 1024)
-                Max Grid Size: (2147483647, 65536, 65536)
-                Clock Rate: 2660000
-                Total Constant Memory: 2147483647
-                Multiprocessor Count: 40
-                L2 Cache Size: 4194304
-                Max Threads per Multiprocessor: 2048
-                Unified Addressing: 0
-                Memory Clock Rate: 1000000
-                Memory Bus Width: 256
-                Peak Memory Bandwidth: 64.000000
+                Compute Capability:                     10.3
+                Total Global Memory:                    17163091968
+                Shared Memory per Block:                65536
+                Registers per Block:                    65536
+                Warp Size:                              32
+                Max Threads per Block:                  1024
+                Max Threads Dimension:                  (1024, 1024, 1024)
+                Max Grid Size:                          (2147483647, 65536, 65536)
+                Clock Rate:                             2660000
+                Total Constant Memory:                  2147483647
+                Multiprocessor Count:                   40
+                L2 Cache Size:                          4194304
+                Max Threads per Multiprocessor:         2048
+                Unified Addressing:                     0
+                Memory Clock Rate:                      1000000
+                Memory Bus Width:                       256
+                Peak Memory Bandwidth:                  64.000000
+        Number of HIP devices found: 1
         Hello from HIP Kernel!
         Memory Usage: 40 megabytes
         Running FM Synthesis...
@@ -59,7 +60,7 @@ The following command generates a .wav file with a 1-second sound clip using the
         Total number of threads: 5280000
 
         FM Synthesis completed!
-        Kernel execution time: 13.239 ms
+        Kernel execution time: 12.600 ms
         WAV file written: output_32bit_48kHz.wav
         Memory Usage: 0 megabytes
 ```

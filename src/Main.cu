@@ -288,12 +288,12 @@ i32 main(i32 argc, char **argv)
     i16 deviceCount = GetHIPDevices();
     if (deviceCount == -1 || deviceCount == 0)
     {
-        std::cerr << "No HIP devices (supported GPU's) found!" << std::endl;
+        std::cerr << "ERROR: No HIP devices (supported GPU's) found!" << std::endl;
         return 1;
     }
     else
     {
-        std::cout << "Number of HIP devices found: " << deviceCount << std::endl;
+        std::cout << "\tNumber of HIP devices found: " << deviceCount << std::endl;
     }
 
     HIP_ERRCHK(hipSetDevice(0));
