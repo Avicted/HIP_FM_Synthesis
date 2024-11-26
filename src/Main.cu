@@ -194,7 +194,7 @@ FMSynthesis(FMSynthParams params, f64 *outputSignal, MidiNote *midiNotes, i32 nu
         return;
     }
 
-    f64 time = (double)idx / params.sampleRate;
+    f64 time = (f64)idx / params.sampleRate;
     f64 signal = 0.0f;
 
     for (i32 i = 0; i < numNotes; ++i)
@@ -239,7 +239,7 @@ RunFMSynthesis(f64 *outputSignal, FMSynthParams params, MidiNote *notes, i32 num
     // Allocate device memory
     f64 *d_outputSignal;
     MidiNote *d_notes;
-    HIP_ERRCHK(hipMalloc(&d_outputSignal, params.signalLength * sizeof(double)));
+    HIP_ERRCHK(hipMalloc(&d_outputSignal, params.signalLength * sizeof(f64)));
     HIP_ERRCHK(hipMalloc(&d_notes, numNotes * sizeof(MidiNote)));
 
     // Copy notes to device memory
@@ -257,7 +257,7 @@ RunFMSynthesis(f64 *outputSignal, FMSynthParams params, MidiNote *notes, i32 num
     HIP_ERRCHK(hipDeviceSynchronize());
 
     // Copy result back to host
-    HIP_ERRCHK(hipMemcpy(outputSignal, d_outputSignal, params.signalLength * sizeof(double), hipMemcpyDeviceToHost));
+    HIP_ERRCHK(hipMemcpy(outputSignal, d_outputSignal, params.signalLength * sizeof(f64), hipMemcpyDeviceToHost));
     HIP_ERRCHK(hipFree(d_outputSignal));
     HIP_ERRCHK(hipFree(d_notes));
 
@@ -292,7 +292,7 @@ i32 main(i32 argc, char **argv)
 
     // Allocate host memory
     outputSignal.resize(signalLength);
-    MemoryUsageInBytes += outputSignal.size() * sizeof(double);
+    MemoryUsageInBytes += outputSignal.size() * sizeof(f64);
 
     u64 MemoryUsageInMegabytes = MemoryUsageInBytes / (1024 * 1024);
     printf("\tMemory Usage: %lu megabytes\n", MemoryUsageInMegabytes);
@@ -336,7 +336,7 @@ i32 main(i32 argc, char **argv)
     WriteWAVFile(fileName, outputSignal.data(), params.signalLength, params.sampleRate, bitDepth);
 
     // Free host memory
-    MemoryUsageInBytes -= outputSignal.size() * sizeof(double);
+    MemoryUsageInBytes -= outputSignal.size() * sizeof(f64);
 
     MemoryUsageInMegabytes = MemoryUsageInBytes / (1024 * 1024);
     printf("\tMemory Usage: %lu megabytes\n", MemoryUsageInMegabytes);
