@@ -285,7 +285,16 @@ i32 main(i32 argc, char **argv)
                   << ", Velocity: " << note.velocity << std::endl;
     }
 
-    GetCudaDevices();
+    i16 deviceCount = GetHIPDevices();
+    if (deviceCount == -1 || deviceCount == 0)
+    {
+        std::cerr << "No HIP devices (supported GPU's) found!" << std::endl;
+        return 1;
+    }
+    else
+    {
+        std::cout << "Number of HIP devices found: " << deviceCount << std::endl;
+    }
 
     HIP_ERRCHK(hipSetDevice(0));
 

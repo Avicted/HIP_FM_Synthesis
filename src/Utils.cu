@@ -11,20 +11,20 @@ internal inline void hip_errchk(hipError_t err, const char *file, i32 line)
     }
 }
 
-internal void
-GetCudaDevices(void)
+internal i16
+GetHIPDevices(void)
 {
     i32 deviceCount = 0;
     hipError_t Error = hipGetDeviceCount(&deviceCount);
 
     if (Error != hipSuccess)
     {
-        printf("\tFailed to get CUDA Device Count: %s\n", hipGetErrorString(Error));
-        return;
+        printf("\tFailed to get HIP Device Count: %s\n", hipGetErrorString(Error));
+        return -1;
     }
     else
     {
-        printf("\tCUDA Device Count: %d\n", deviceCount);
+        printf("\tHIP Device Count: %d\n", deviceCount);
     }
 
     for (i32 i = 0; i < deviceCount; i++)
@@ -34,7 +34,7 @@ GetCudaDevices(void)
 
         if (Error != hipSuccess)
         {
-            printf("\tFailed to get CUDA Device Properties: %s\n", hipGetErrorString(Error));
+            printf("\tFailed to get HIP Device Properties: %s\n", hipGetErrorString(Error));
             continue;
         }
         else
@@ -59,4 +59,6 @@ GetCudaDevices(void)
             printf("\t\tPeak Memory Bandwidth: %f\n", 2.0 * prop.memoryClockRate * (prop.memoryBusWidth / 8) / 1.0e6);
         }
     }
+
+    return deviceCount;
 }
