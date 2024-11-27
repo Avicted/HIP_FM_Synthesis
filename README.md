@@ -1,5 +1,7 @@
 # FM Synthesizer with HIP (ROCm and CUDA)
 
+- Work in progress.
+
 This project demonstrates **FM Synthesis** (Frequency Modulation) using **HIP** (Heterogeneous Compute Interface), enabling high-performance sound generation on both AMD and NVIDIA GPUs.
 
 ## Key Features
