@@ -19,12 +19,12 @@ GetHIPDevices(void)
 
     if (Error != hipSuccess)
     {
-        printf("\tFailed to get HIP Device Count: %s\n", hipGetErrorString(Error));
+        printf("    Failed to get HIP Device Count: %s\n", hipGetErrorString(Error));
         return -1;
     }
     else
     {
-        printf("\tHIP Device Count: %d\n", deviceCount);
+        printf("    HIP Device Count: %d\n", deviceCount);
     }
 
     for (i32 i = 0; i < deviceCount; i++)
@@ -34,29 +34,29 @@ GetHIPDevices(void)
 
         if (Error != hipSuccess)
         {
-            printf("\tFailed to get HIP Device Properties: %s\n", hipGetErrorString(Error));
+            printf("    Failed to get HIP Device Properties: %s\n", hipGetErrorString(Error));
             continue;
         }
         else
         {
-            printf("\tDevice %d: %s\n", i, prop.name);
-            printf("\t\tCompute Capability:\t\t%d.%d\n", prop.major, prop.minor);
-            printf("\t\tTotal Global Memory:\t\t%lu\n", prop.totalGlobalMem);
-            printf("\t\tShared Memory per Block:\t%lu\n", prop.sharedMemPerBlock);
-            printf("\t\tRegisters per Block:\t\t%d\n", prop.regsPerBlock);
-            printf("\t\tWarp Size:\t\t\t%d\n", prop.warpSize);
-            printf("\t\tMax Threads per Block:\t\t%d\n", prop.maxThreadsPerBlock);
-            printf("\t\tMax Threads Dimension:\t\t(%d, %d, %d)\n", prop.maxThreadsDim[0], prop.maxThreadsDim[1], prop.maxThreadsDim[2]);
-            printf("\t\tMax Grid Size:\t\t\t(%d, %d, %d)\n", prop.maxGridSize[0], prop.maxGridSize[1], prop.maxGridSize[2]);
-            printf("\t\tClock Rate:\t\t\t%d\n", prop.clockRate);
-            printf("\t\tTotal Constant Memory:\t\t%lu\n", prop.totalConstMem);
-            printf("\t\tMultiprocessor Count:\t\t%d\n", prop.multiProcessorCount);
-            printf("\t\tL2 Cache Size:\t\t\t%d\n", prop.l2CacheSize);
-            printf("\t\tMax Threads per Multiprocessor:\t%d\n", prop.maxThreadsPerMultiProcessor);
-            printf("\t\tUnified Addressing:\t\t%d\n", prop.unifiedAddressing);
-            printf("\t\tMemory Clock Rate:\t\t%d\n", prop.memoryClockRate);
-            printf("\t\tMemory Bus Width:\t\t%d\n", prop.memoryBusWidth);
-            printf("\t\tPeak Memory Bandwidth:\t\t%f\n", 2.0 * prop.memoryClockRate * (prop.memoryBusWidth / 8) / 1.0e6);
+            printf("    Device %d: %s\n", i, prop.name);
+            printf("        Compute Capability: ------------ = %d.%d\n", prop.major, prop.minor);
+            printf("        Total Global Memory: ----------- = %lu\n", prop.totalGlobalMem);
+            printf("        Shared Memory per Block: ------- = %lu\n", prop.sharedMemPerBlock);
+            printf("        Registers per Block: ----------- = %d\n", prop.regsPerBlock);
+            printf("        Warp Size: --------------------- = %d\n", prop.warpSize);
+            printf("        Max Threads per Block: --------- = %d\n", prop.maxThreadsPerBlock);
+            printf("        Max Threads Dimension: --------- = (%d, %d, %d)\n", prop.maxThreadsDim[0], prop.maxThreadsDim[1], prop.maxThreadsDim[2]);
+            printf("        Max Grid Size: ----------------- = (%d, %d, %d)\n", prop.maxGridSize[0], prop.maxGridSize[1], prop.maxGridSize[2]);
+            printf("        Clock Rate: -------------------- = %d\n", prop.clockRate);
+            printf("        Total Constant Memory: --------- = %lu\n", prop.totalConstMem);
+            printf("        Multiprocessor Count: ---------- = %d\n", prop.multiProcessorCount);
+            printf("        L2 Cache Size: ----------------- = %d\n", prop.l2CacheSize);
+            printf("        Max Threads per Multiprocessor:  = %d\n", prop.maxThreadsPerMultiProcessor);
+            printf("        Unified Addressing: ------------ = %d\n", prop.unifiedAddressing);
+            printf("        Memory Clock Rate: ------------- = %d\n", prop.memoryClockRate);
+            printf("        Memory Bus Width: -------------- = %d\n", prop.memoryBusWidth);
+            printf("        Peak Memory Bandwidth: --------- = %f\n\n", 2.0 * prop.memoryClockRate * (prop.memoryBusWidth / 8) / 1.0e6);
         }
     }
 

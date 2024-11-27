@@ -68,6 +68,7 @@ struct MidiNote
     f64 startTime; // Note start time in seconds
     f64 duration;  // Note duration in seconds
     i32 velocity;  // Note velocity
+    f64 phase;     // Phase of the waveform
 };
 
 // Create host buffer for the output signal
@@ -186,7 +187,7 @@ GenerateWaveform(WaveformType type, f64 phase)
 
 // FM Synthesis Kernel
 __global__ void
-FMSynthesis(FMSynthParams params, f64 *outputSignal, MidiNote *midiNotes, i32 numNotes)
+FMSynthesis(FMSynthParams params, f64 *outputSignal, MidiNote *midiNotes, const i32 numNotes)
 {
     i32 idx = blockIdx.x * blockDim.x + threadIdx.x;
     if (idx >= params.signalLength)
@@ -197,39 +198,66 @@ FMSynthesis(FMSynthParams params, f64 *outputSignal, MidiNote *midiNotes, i32 nu
     f64 time = (f64)idx / params.sampleRateHz;
     f64 signal = 0.0f;
 
+    i64 numberOfNotesInKernel_0 = 0;
+    if (idx == 0)
+    {
+        numberOfNotesInKernel_0 = numNotes;
+        printf("\tNumber of notes in Kernel 0: %ld\n", numberOfNotesInKernel_0);
+    }
+
+    // @Optimization: Use shared memory for phase tracking of each note
+    extern __shared__ f64 sharedPhases[];
+    if (threadIdx.x < numNotes)
+    {
+        sharedPhases[threadIdx.x] = 0.0;
+    }
+    __syncthreads();
+
     for (i32 i = 0; i < numNotes; ++i)
     {
-        const MidiNote &note = midiNotes[i];
+        MidiNote &note = midiNotes[i];
+
         if (time < note.startTime || time >= note.startTime + note.duration)
         {
             continue;
         }
 
-        const i32 midiNoteA4 = 69;
-        f64 carrierFreq = 440.0f * powf(2.0f, (note.note - midiNoteA4) / 12.0f);
-        f64 modulatorFreq = carrierFreq * 2.0; // params.modulatorFreq; // Can vary per note if needed
-        f64 phase = fmodf(2.0f * PI * carrierFreq * time, 2.0f * PI);
-        phase += params.modulationIndex * __sinf(2.0f * PI * modulatorFreq * time);
+        f64 carrierFreq = 440.0f * powf(2.0f, (note.note - 69.0) / 12.0f); // Frequency based on MIDI note
+        f64 modulatorFreq = carrierFreq * 2.0;                             // Can vary per note if needed
 
-        f64 envelope = ApplyEnvelope(
+        f64 phase = 0.0;
+
+        // Increment the phase based on the carrier frequency and time
+        if (idx != 0)
+        {
+            // Update the phase of the current note using the previous phase stored in shared memory
+            sharedPhases[i] = fmod(sharedPhases[i] + 2.0 * PI * carrierFreq * (time - note.startTime), 2.0 * PI);
+            phase = sharedPhases[i] + params.modulationIndex * sin(2.0 * PI * modulatorFreq * time);
+        }
+        else
+        {
+            sharedPhases[i] = 0.0;
+            phase = fmod(2.0 * PI * carrierFreq * time, 2.0 * PI);
+        }
+
+        // Apply the envelope to the signal
+        /*f64 envelope = ApplyEnvelope(
             time - note.startTime,
             params.attackTime,
             params.decayTime,
             params.sustainLevel,
             params.releaseTime,
-            note.duration);
+            note.duration);*/
+
+        const f64 envelope = 1.0;
 
         // Signal accumulation
         signal += note.velocity / 127.0 * params.amplitude * envelope *
                   GenerateWaveform(params.waveformType, phase);
-
-        f64 waveform = GenerateWaveform(params.waveformType, phase);
-
-        // Apply envelope
-        signal *= envelope;
-
-        outputSignal[idx] = signal;
     }
+
+    // Store the final signal to the output buffer
+    outputSignal[idx] = signal;
 }
 
 internal void
@@ -253,7 +281,7 @@ RunFMSynthesis(f64 *outputSignal, FMSynthParams params, MidiNote *notes, i32 num
     printf("\n\tLaunching kernel with %d blocks and %d threads per block\n", gridDim.x, blockDim.x);
     printf("\tTotal number of threads: %d\n\n", gridDim.x * blockDim.x);
 
-    FMSynthesis<<<gridDim, blockDim>>>(params, d_outputSignal, d_notes, numNotes);
+    FMSynthesis<<<gridDim, blockDim, numNotes * sizeof(f64)>>>(params, d_outputSignal, d_notes, numNotes);
 
     HIP_ERRCHK(hipDeviceSynchronize());
 
@@ -340,7 +368,7 @@ i32 main(i32 argc, char **argv)
     printf("\tKernel execution time: %.3f ms\n", milliseconds);
 
     // 16, 24, 32-bit WAV output
-    i32 bitDepth = 32;
+    i32 bitDepth = 16;
     char fileName[50];
     sprintf(fileName, "output_%dbit_%dkHz.wav", bitDepth, params.sampleRateHz / 1000);
     WriteWAVFile(fileName, outputSignal.data(), params.signalLength, params.sampleRateHz, bitDepth);
